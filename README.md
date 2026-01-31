@@ -4,37 +4,39 @@ Your personal platform engineer, without the Jira ticket.
 
 Cluster Codex is a developer-friendly, LLM-enhanced Kubernetes tool that helps users:
 
-1. Visualize and document Kubernetes cluster and resource deployment issues
-2. Generate recommendations to immediately remediate those issues
-3. Strategize long-term fixes to prevent the same issues from recurring
+1. **See** Kubernetes cluster issues detected by K8sGPT
+2. **Understand** what's wrong via AI-generated remediation plans
+3. **Act** with step-by-step kubectl commands to fix issues
+
+> **MVP Scope**: This is a 4-hour proof-of-concept demonstrating the core workflow: authenticate → view detected issues → generate fix recommendations.
 
 ## Technology Stack
 
-Cluster Codex uses the following core technologies:
+### Core (MVP)
 
-| Technology                                                                              | Purpose                                            |
-| --------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| [React](https://react.dev)                                                              | User interface                                     |
-| [Supabase](https://supabase.com)                                                        | Database, Auth                                     |
-| [Prisma](https://www.prisma.io/)                                                        | Migrations, Seeding, ORM                           |
-| [K8sGPT](https://github.com/k8sgpt-ai/k8sgpt)                                           | MCP server, cluster and issues context provider    |
-| [Kubernetes Fluent Client](https://github.com/defenseunicorns/kubernetes-fluent-client) | Typescript-native Kubernetes resource manipulation |
-| [OpenAI Codex](https://openai.com/codex)                                                | Issue decomposition, recommended fixes             |
+| Technology                                                                     | Purpose                                    |
+| ------------------------------------------------------------------------------ | ------------------------------------------ |
+| [React](https://react.dev) + [Vite](https://vitejs.dev)                        | Frontend UI                                |
+| [Express](https://expressjs.com)                                               | Backend API                                |
+| [Supabase](https://supabase.com)                                               | Auth (local Docker)                        |
+| [K8sGPT Operator](https://docs.k8sgpt.ai/getting-started/in-cluster-operator/) | In-cluster issue detection via Result CRDs |
+| [K3d](https://k3d.io/stable)                                                   | Local Kubernetes cluster                   |
+| [OpenAI SDK](https://github.com/openai/openai-node)                            | LLM client (mock mode for demo)            |
 
-The tests and demonstrations use the following technologies:
+### Future (Post-MVP)
 
-| Technology                                                                              | Purpose                                            |
-| --------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| [K3d](https://k3d.io/stable)                                                            | K3s in Docker, a lightweight Kubernetes cluster    |
-| [Playwright](https://playwright.dev)                                                    | Testing framework and orchestrator                 |
+| Technology                                                           | Purpose                              |
+| -------------------------------------------------------------------- | ------------------------------------ |
+| [Prisma](https://www.prisma.io/)                                     | Database ORM + migrations            |
+| [Kubernetes Client](https://github.com/kubernetes-client/javascript) | Direct K8s API access                |
+| [llama.cpp](https://github.com/ggerganov/llama.cpp)                  | Local LLM (zero API cost)            |
+| [Playwright](https://playwright.dev)                                 | E2E testing                          |
 
 ## How It Works
 
 ### Runtime Environment
 
-Cluster Codex is assumed to be running with access to the MCP servers and skills defined in `.codex/` directory of this project repository, as well as a `kubeconfig` that provides access to the target Kubernetes clusters.
-
-Cluster Codex is assumed to be deployed outside of the cluster it operates on, with authentication and authorization layers protecting resources and namespaces the user is not permitted to access.
+Cluster Codex is assumed to be deployed outside of the Kubernetes cluster it operates on, with authentication and authorization layers protecting resources and namespaces the user is not permitted to access.
 
 ### Administration
 
@@ -52,7 +54,7 @@ Clicking this button opens up a dialog box that allows the user to add additiona
 
 #### Long-term Resolution
 
-Clicking this button opens a dialog box that allows the user to add additional context to that provided by K8sGPT. This is all sent to Codex alongside a prompt that asks it for a long-term plan to prevent the issue from happening again. This long-term plan could include application refactors, helm chart modifications, upstream contributions, and any other applicable actions.
+Clicking this button opens a dialog box that allows the user to add additional context to that provided by K8sGPT. This is all sent to Codex alongside a prompt that asks it for a long-term plan to prevent the issue from happening again. This long-term plan could include steps to replicate the problem again, upstream source code and Helm chart refactors, and any other applicable actions.
 
 ## How It's Made
 
@@ -60,9 +62,11 @@ Clicking this button opens a dialog box that allows the user to add additional c
 
 Planning began using this `README.md` as the baseline list of technologies and capabilities.
 
-A follow-on `AGENTS.md` was written, and constantly evolved, to guide development and planning of Cluster Codex.
+PLanning continued using an `IMPLEMENTATION.md` to walk-through the actual components, detailed technology stack usage, and the phased approach to the initial MVP of CLuster Codex.
 
-A `.codex/` directory contains different MCP servers and skills that are used for _both_ the development of Cluster Codex and for Cluster Codex itself.
+A follow-on `AGENTS.md` was written to guide development and planning of Cluster Codex.
+
+A `.codex/` directory contains behavior control, MCP servers and skills that are used for the development of Cluster Codex using OpenAI Codex.
 
 ### Testing
 
@@ -72,14 +76,15 @@ Helm charts with known issues are applied to the Kubernetes cluster to see if Cl
 
 Mock answers from a mock Codex server are provided in the landing page when the play buttons are clicked to generate remediation plans.
 
-### Language
+### Languages
 
 TypeScript is the only programming language used throughout this repository.
 
-For testing purposes, shell scripting and Helm charts are used to simulate an existing Kubernetes cluster with existing resources.
+For testing and developer workflow purposes, bash scripting and Helm charts are used.
 
-## What's Next
+## Future Considerations
 
-We just started, so I am leaving this blank for now! Here is a work-in-progress list of out-of-scope ideas:
-
-1. An optional step to kick off a Codex agent to help the user execute on the immediate resolution plan. The actions taken and results of those actions are then added to the context for the long-term resolution recommendation generation.
+- Agentic execution of short-term remediation plans (i.e., implementation via direct cluster interaction)
+- Agentic execution of long-term resolution plans (i.e., upstream ticket writing, upstream ticket implementation)
+- More granular RBAC on read/write actions against the Kubernetes cluster
+- Formalize the deployed Cluster Codex to cluster authentication, authorization, and networking model to enable safe, least-privilege cluster administration

@@ -1,0 +1,239 @@
+# Codex example configuration (config.toml)
+#
+# This file lists all keys Codex reads from config.toml, their default values,
+# and concise explanations. Values here mirror the effective defaults compiled
+# into the CLI. Adjust as needed.
+#
+# Notes
+# - Root keys must appear before tables in TOML.
+# - Optional keys that default to "unset" are shown commented out with notes.
+# - MCP servers, profiles, and model providers are examples; remove or edit.
+
+################################################################################
+# Core Model Selection
+################################################################################
+
+# Primary model used by Codex. Default: "gpt-5.2-codex" on all platforms.
+model = "gpt-5.2-codex"
+
+# Optional model override for /review. Default: unset (uses current session model).
+# review_model = "gpt-5.2-codex"
+
+# Provider id selected from [model_providers]. Default: "openai".
+model_provider = "openai"
+
+# Default OSS provider for --oss sessions. When unset, Codex prompts. Default: unset.
+# oss_provider = "ollama"
+
+# Optional manual model metadata. When unset, Codex auto-detects from model.
+# Uncomment to force values.
+# model_context_window = 128000       # tokens; default: auto for model
+# model_auto_compact_token_limit = 0  # tokens; unset uses model defaults
+# tool_output_token_limit = 10000     # tokens stored per tool output; default: 10000 for gpt-5.2-codex
+
+################################################################################
+# Reasoning & Verbosity (Responses API capable models)
+################################################################################
+
+# Reasoning effort: minimal | low | medium | high | xhigh (default: medium; xhigh on gpt-5.2-codex and gpt-5.2)
+model_reasoning_effort = "medium"
+
+# Reasoning summary: auto | concise | detailed | none (default: auto)
+model_reasoning_summary = "auto"
+
+# Text verbosity for GPT-5 family (Responses API): low | medium | high (default: medium)
+model_verbosity = "medium"
+
+# Force-enable reasoning summaries for current model (default: false)
+model_supports_reasoning_summaries = false
+
+
+################################################################################
+# Notifications
+################################################################################
+
+# External notifier program (argv array). When unset: disabled.
+# Example: notify = ["notify-send", "Codex"]
+notify = []
+
+
+################################################################################
+# Approval & Sandbox
+################################################################################
+
+# When to ask for command approval:
+# - untrusted: only known-safe read-only commands auto-run; others prompt
+# - on-failure: auto-run in sandbox; prompt only on failure for escalation
+# - on-request: model decides when to ask (default)
+# - never: never prompt (risky)
+approval_policy = "on-request"
+
+# Filesystem/network sandbox policy for tool calls:
+# - read-only (default)
+# - workspace-write
+# - danger-full-access (no sandbox; extremely risky)
+sandbox_mode = "read-only"
+
+################################################################################
+# Authentication & Login
+################################################################################
+
+# Where to persist CLI login credentials: file (default) | keyring | auto
+cli_auth_credentials_store = "file"
+
+# Base URL for ChatGPT auth flow (not OpenAI API). Default:
+chatgpt_base_url = "https://chatgpt.com/backend-api/"
+
+# Restrict ChatGPT login to a specific workspace id. Default: unset.
+# forced_chatgpt_workspace_id = ""
+
+# Force login mechanism when Codex would normally auto-select. Default: unset.
+# Allowed values: chatgpt | api
+# forced_login_method = "chatgpt"
+
+# Preferred store for MCP OAuth credentials: auto (default) | file | keyring
+mcp_oauth_credentials_store = "auto"
+
+# Optional fixed port for MCP OAuth callback: 1-65535. Default: unset.
+# mcp_oauth_callback_port = 4321
+
+################################################################################
+# Project Documentation Controls
+################################################################################
+
+# Max bytes from AGENTS.md to embed into first-turn instructions. Default: 32768
+project_doc_max_bytes = 32768
+
+# Ordered fallbacks when AGENTS.md is missing at a directory level. Default: []
+project_doc_fallback_filenames = []
+
+# Project root marker filenames used when searching parent directories. Default: [".git"]
+# project_root_markers = [".git"]
+
+################################################################################
+# History & File Opener
+################################################################################
+
+# URI scheme for clickable citations: vscode (default) | vscode-insiders | windsurf | cursor | none
+file_opener = "vscode"
+
+################################################################################
+# UI, Notifications, and Misc
+################################################################################
+
+# Suppress internal reasoning events from output. Default: false
+hide_agent_reasoning = false
+
+# Show raw reasoning content when available. Default: false
+show_raw_agent_reasoning = false
+
+# Disable burst-paste detection in the TUI. Default: false
+disable_paste_burst = false
+
+# Track Windows onboarding acknowledgement (Windows only). Default: false
+windows_wsl_setup_acknowledged = false
+
+# Check for updates on startup. Default: true
+check_for_update_on_startup = true
+
+################################################################################
+# Web Search
+################################################################################
+
+# Web search mode: disabled | cached | live. Default: "cached"
+# cached serves results from a web search cache (an OpenAI-maintained index).
+# cached returns pre-indexed results; live fetches the most recent data.
+# If you use --yolo or another full access sandbox setting, web search defaults to live.
+web_search = "live"
+
+################################################################################
+# Shell Environment Policy for spawned processes (table)
+################################################################################
+
+[shell_environment_policy]
+# inherit: all (default) | core | none
+inherit = "all"
+# Skip default excludes for names containing KEY/SECRET/TOKEN (case-insensitive). Default: true
+ignore_default_excludes = true
+# Case-insensitive glob patterns to remove (e.g., "AWS_*", "AZURE_*"). Default: []
+exclude = []
+# Explicit key/value overrides (always win). Default: {}
+set = {}
+# Whitelist; if non-empty, keep only matching vars. Default: []
+include_only = []
+# Experimental: run via user shell profile. Default: false
+experimental_use_profile = false
+
+################################################################################
+# History (table)
+################################################################################
+
+[history]
+# save-all (default) | none
+persistence = "save-all"
+# Maximum bytes for history file; oldest entries are trimmed when exceeded. Example: 5242880
+# max_bytes = 0
+
+################################################################################
+# UI, Notifications, and Misc (tables)
+################################################################################
+
+[tui]
+# Desktop notifications from the TUI: boolean or filtered list. Default: true
+# Examples: false | ["agent-turn-complete", "approval-requested"]
+notifications = false
+
+# Enables welcome/status/spinner animations. Default: true
+animations = true
+
+# Show onboarding tooltips in the welcome screen. Default: true
+show_tooltips = true
+
+# Control alternate screen usage (auto skips it in Zellij to preserve scrollback).
+# alternate_screen = "auto"
+
+# Control whether users can submit feedback from `/feedback`. Default: true
+[feedback]
+enabled = false
+
+################################################################################
+# Define MCP servers under this table. Leave empty to disable.
+################################################################################
+
+[mcp_servers]
+
+[mcp_servers.context7]
+command = "npx"
+args = ["-y", "@upstash/context7-mcp"]
+
+################################################################################
+# Profiles (named presets)
+################################################################################
+
+[profiles]
+
+# [profiles.default]
+# model = "gpt-5.2-codex"
+# model_provider = "openai"
+# approval_policy = "on-request"
+# sandbox_mode = "read-only"
+# oss_provider = "ollama"
+# model_reasoning_effort = "medium"
+# model_reasoning_summary = "auto"
+# model_verbosity = "medium"
+# chatgpt_base_url = "https://chatgpt.com/backend-api/"
+# experimental_compact_prompt_file = "./compact_prompt.txt"
+# include_apply_patch_tool = false
+# experimental_use_unified_exec_tool = false
+# experimental_use_freeform_apply_patch = false
+# tools_web_search = false                # deprecated legacy alias; prefer `web_search`
+# features = { unified_exec = false }
+
+################################################################################
+# Projects (trust levels)
+################################################################################
+
+# Mark specific worktrees as trusted or untrusted.
+[projects]
+# [projects."/absolute/path/to/project"]
+# trust_level = "trusted"  # or "untrusted"
