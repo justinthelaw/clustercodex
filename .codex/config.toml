@@ -36,13 +36,13 @@ model_provider = "openai"
 ################################################################################
 
 # Reasoning effort: minimal | low | medium | high | xhigh (default: medium; xhigh on gpt-5.2-codex and gpt-5.2)
-model_reasoning_effort = "medium"
+model_reasoning_effort = "xhigh"
 
 # Reasoning summary: auto | concise | detailed | none (default: auto)
-model_reasoning_summary = "auto"
+model_reasoning_summary = "concise"
 
 # Text verbosity for GPT-5 family (Responses API): low | medium | high (default: medium)
-model_verbosity = "medium"
+model_verbosity = "low"
 
 # Force-enable reasoning summaries for current model (default: false)
 model_supports_reasoning_summaries = false
