@@ -23,32 +23,31 @@ Cluster Codex combines **automated issue detection** (via K8sGPT) with **LLM-pow
 
 ## How It Works
 
-```diagram
-┌─────────────────────────────────────────────────────────────────────┐
-│                         Cluster Codex                               │
-├─────────────────────────────────────────────────────────────────────┤
-│   ┌──────────────┐    ┌──────────────┐    ┌──────────────┐          │
-│   │   Landing    │    │   Resource   │    │    Admin     │          │
-│   │   (Issues)   │    │     Tabs     │    │    Portal    │          │
-│   └──────┬───────┘    └──────┬───────┘    └──────┬───────┘          │
-│          └───────────────────┼───────────────────┘                  │
-│                              ▼                                      │
-│                     ┌────────────────┐                              │
-│                     │  Express API   │                              │
-│                     └───────┬────────┘                              │
-│          ┌──────────────────┼──────────────────┐                    │
-│          ▼                  ▼                  ▼                    │
-│   ┌─────────────┐    ┌─────────────┐    ┌─────────────┐             │
-│   │   K8sGPT    │    │  Kubernetes │    │     LLM     │             │
-│   │  Operator   │    │   Client    │    │   (Codex)   │             │
-│   └─────────────┘    └─────────────┘    └─────────────┘             │
-└─────────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-                      ┌────────────────┐
-                      │   Kubernetes   │
-                      │    Cluster     │
-                      └────────────────┘
+```mermaid
+graph BT
+    Cluster["Kubernetes<br/>Cluster"]
+    
+    subgraph ClusterCodex["Cluster Codex"]
+        K8sGPT["K8sGPT<br/>Operator"]
+        K8sClient["Kubernetes<br/>Client"]
+        LLM["LLM<br/>(Codex)"]
+        API["Express API"]
+        Landing["Landing<br/>(Issues)"]
+        Resources["Resource<br/>Tabs"]
+        Admin["Admin<br/>Portal"]
+        
+        K8sGPT --> API
+        K8sClient --> API
+        LLM --> API
+        
+        API --> Landing
+        API --> Resources
+        API --> Admin
+    end
+    
+    Cluster --> K8sGPT
+    Cluster --> K8sClient
+    Cluster --> LLM
 ```
 
 1. **K8sGPT Operator** runs in-cluster, detecting issues via Result CRDs
