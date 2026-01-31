@@ -6,7 +6,7 @@ This document details the implementation plan for Cluster Codex MVP—a 4-hour p
 
 **In Scope**:
 
-- Supabase authentication (local Docker)
+- Local JWT authentication (in-memory users)
 - Issues table with K8sGPT-detected problems
 - Mock LLM responses for remediation and long-term plans
 - Read-only resource tabs (Pods, Deployments, Nodes, Events)
@@ -24,7 +24,7 @@ This document details the implementation plan for Cluster Codex MVP—a 4-hour p
 - **Scope**: Read-only + plan generation only. No in-app apply/patch actions.
 - **Environment**: Single local K3d cluster, single org, single admin.
 - **Cluster access**: One kubeconfig with one context.
-- **Auth**: Supabase email/password; no SSO.
+- **Auth**: Local email/password + JWT; no SSO.
 - **Multi-tenancy**: Not in PoC.
 - **Authorization**: App-layer filtering only (no per-user K8s RBAC).
 - **Real-time**: Polling every 30s for issues; no watches/streaming.
@@ -37,8 +37,6 @@ This document details the implementation plan for Cluster Codex MVP—a 4-hour p
 - **Orchestration**: Package.json scripts for simple tasks, bash scripts in `/scripts` for complex workflows.
 - **Frontend Port**: 5173 (Vite default).
 - **Backend Port**: 3001.
-- **Supabase**: Local Docker via `supabase start`, not hosted.
-- **Supabase Ports**: API 54321, DB 54322, Studio 54323.
 - **K8sGPT Operator**: Deployed in-cluster via Helm; accessed via Result CRDs.
 - **K8s Client**: `@kubernetes/client-node` (official Kubernetes JavaScript client).
 - **Kubeconfig**: Read from `~/.kube/config` or `KUBECONFIG` env var.
@@ -55,18 +53,17 @@ This document details the implementation plan for Cluster Codex MVP—a 4-hour p
 - Plan view: renders structured JSON (remediation + long-term).
 - Admin page: user access policies (simple, single user).
 - All state managed via API calls to Express backend.
-- Supabase client for authentication only.
 
 **Backend** (Node.js + Express API):
 
 - `/api/issues` → reads K8sGPT Result CRDs from cluster → maps to Issue records.
 - `/api/resources` → reads Kubernetes via `@kubernetes/client-node`.
 - `/api/plans/remediation` + `/api/plans/long-term` → builds prompt + redacts + calls Codex (mock).
-- `/api/admin/access-policy` → read/write policy rows in Supabase.
+- `/api/admin/access-policy` → in-memory (Phase 1)
 - Handles all business logic, authorization, and external service integration.
-- Validates Supabase JWT tokens for authentication.
+- Validates local JWT tokens for authentication.
 
-**Data** (Supabase + Prisma):
+**Data** (In-memory + future Prisma):
 
 - Stores issues, plans, policies, prompt runs, audit logs.
 - Minimal schema optimized for demo and future expansion.
@@ -77,11 +74,8 @@ This document details the implementation plan for Cluster Codex MVP—a 4-hour p
 ### Backend `.env`
 
 ```bash
-# Supabase (local Docker)
-SUPABASE_URL=http://localhost:54321
-SUPABASE_ANON_KEY=<from supabase start output>
-SUPABASE_SERVICE_ROLE_KEY=<from supabase start output>
-DATABASE_URL=postgresql://postgres:postgres@localhost:54322/postgres
+# Local Auth
+JWT_SECRET=change-me-in-local
 
 # Server
 PORT=3001
@@ -107,8 +101,6 @@ CODEX_MOCK_MODE=false
 
 ```bash
 VITE_BACKEND_URL=http://localhost:3001
-VITE_SUPABASE_URL=http://localhost:54321
-VITE_SUPABASE_ANON_KEY=<from supabase start output>
 ```
 
 ## Root package.json Scripts
@@ -140,7 +132,7 @@ Scripts in `scripts/` handle complex orchestration:
 
 ## Seed Data Specification
 
-**Users** (created in Supabase Auth + synced to DB):
+**Users** (in-memory for demo):
 
 - Admin: `admin@clustercodex.local` / `admin123!`
 - User: `user@clustercodex.local` / `user123!`
@@ -195,10 +187,10 @@ Minimal, PoC-focused schema (single org, but fields left for future growth):
 
 ### Authentication Flow
 
-1. Frontend calls Supabase Auth to sign in → receives JWT.
-2. Frontend includes JWT in `Authorization: Bearer <token>` header for all API calls.
-3. Backend middleware validates JWT with Supabase and extracts user ID.
-4. Backend loads user's AccessPolicy and enforces filtering.
+1. Frontend calls `/api/auth/login` with email/password.
+2. Backend returns JWT.
+3. Frontend includes JWT in `Authorization: Bearer <token>` header for all API calls.
+4. Backend validates JWT and enforces filtering.
 
 ### Error Response Format
 
@@ -434,7 +426,7 @@ Unit tests must assert redaction.
 - Collect issue + user context.
 - Show loading state with spinner.
 - Render structured plan with steps + risk.
-- “Save plan” writes to Supabase.
+- “Save plan” writes to in-memory storage (Phase 1).
 
 ### Resource Tabs
 
@@ -444,7 +436,7 @@ Unit tests must assert redaction.
 ### Admin
 
 - One page: set namespace/kind allow lists, set rate limit for generations/min/user.
-- Saves to Supabase + audit log.
+- Saves to in-memory store + audit log (Phase 1).
 
 ## Security and Ops
 
@@ -477,18 +469,18 @@ The MVP is scoped for **~4 hours** of focused development. Each phase has clear 
    - `backend/` — Express + TypeScript
    - `scripts/` — Bash infrastructure scripts
    - `charts/k8sgpt-operator/` — Helm values
-   - `supabase/` — Local Supabase config
+   - `charts/broken-pod/` — Helm chart that deploys an invalid image
 
 2. **Package initialization**:
    - Root `package.json` with orchestration scripts
-   - Frontend `package.json` with: `react`, `react-dom`, `@supabase/supabase-js`, `axios`, `react-router-dom`
-   - Backend `package.json` with: `express`, `@supabase/supabase-js`, `cors`, `dotenv`
+   - Frontend `package.json` with: `react`, `react-dom`, `axios`, `react-router-dom`
+   - Backend `package.json` with: `express`, `cors`, `dotenv`
    - Dev dependencies: `typescript`, `@types/*`, `tsx`, `vite`, `concurrently`
 
 3. **Infrastructure scripts** (stubbed, minimal functionality):
-   - `scripts/setup.sh` — Install deps, init Supabase, create K3d cluster
-   - `scripts/start-infra.sh` — Start Supabase and K3d
-   - `scripts/stop-infra.sh` — Stop Supabase and K3d
+   - `scripts/setup.sh` — Install deps, create K3d cluster
+   - `scripts/start-infra.sh` — Start K3d
+   - `scripts/stop-infra.sh` — Stop K3d
    - `scripts/seed-broken-pods.sh` — Deploy test pods (placeholder)
 
 4. **Configuration files**:
@@ -502,11 +494,11 @@ The MVP is scoped for **~4 hours** of focused development. Each phase has clear 
 
 **Exit Criteria**:
 
-- [ ] `npm install` succeeds in root, frontend, and backend
-- [ ] `npm run dev` starts both servers without errors
-- [ ] Frontend at `http://localhost:5173` displays "Cluster Codex"
-- [ ] Frontend successfully calls `http://localhost:3001/health`
-- [ ] `npm run infra:start` starts Supabase (K3d optional for this phase)
+- [x] `npm install` succeeds in root, frontend, and backend
+- [x] `npm run dev` starts both servers without errors
+- [x] Frontend at `http://localhost:5173` displays "Cluster Codex"
+- [x] Frontend successfully calls `http://localhost:3001/health`
+- [x] `npm run infra:start` starts K3d (optional for this phase)
 
 ### Phase 1: Auth + Mock API (~60 minutes)
 
@@ -514,8 +506,8 @@ The MVP is scoped for **~4 hours** of focused development. Each phase has clear 
 
 **Deliverables**:
 
-1. **Supabase Auth integration**:
-   - Backend middleware: Extract JWT from `Authorization` header, validate with Supabase
+1. **Local Auth integration**:
+   - Backend `/api/auth/login` issues JWT for demo users
    - Frontend: Login page with email/password form
    - Protected routes redirect to login when unauthenticated
 
@@ -529,15 +521,16 @@ The MVP is scoped for **~4 hours** of focused development. Each phase has clear 
    - Express error middleware with consistent JSON error format
    - Frontend error boundaries and toast notifications
 
-4. **Seed data** (if time permits):
-   - Create test users in Supabase Auth: `admin@clustercodex.local`, `user@clustercodex.local`
+4. **Seed data** (built-in):
+   - Demo users in-memory: `admin@clustercodex.local`, `user@clustercodex.local`
 
 **Exit Criteria**:
 
-- [ ] User can sign in with Supabase credentials
-- [ ] Unauthenticated requests to `/api/*` return 401
-- [ ] Authenticated requests to `/api/issues` return mock issue array
-- [ ] `POST /api/plans/remediation` returns valid plan JSON structure
+- [x] User can sign in with demo credentials
+- [x] Unauthenticated requests to `/api/*` return 401
+- [x] Authenticated requests to `/api/issues` return mock issue array
+- [x] User cannot access the admin panel if they are not admin role
+- [x] `POST /api/plans/remediation` returns valid plan JSON structure
 
 ### Phase 2: Frontend UI (~75 minutes)
 
@@ -687,8 +680,7 @@ Add Prisma for data persistence:
 ### Prerequisites
 
 - Node.js 20+
-- Docker (for Supabase and K3d)
-- Supabase CLI: `brew install supabase/tap/supabase`
+- Docker (for K3d)
 - K3d: `brew install k3d`
 - Helm: `brew install helm`
 - llama.cpp (for local LLM): `brew install llama.cpp`
@@ -706,11 +698,8 @@ npm run setup
 The setup script will:
 
 1. Install all npm dependencies (root, frontend, backend)
-2. Start Supabase Docker containers
-3. Copy Supabase credentials to `.env` files
-4. Run database migrations and seed
-5. Create K3d cluster
-6. Deploy K8sGPT Operator via Helm (no AI backend)
+2. Create K3d cluster
+3. Deploy K8sGPT Operator via Helm (no AI backend)
 
 ### Daily Development
 
@@ -730,8 +719,6 @@ npm run dev
 - Frontend: <http://localhost:5173>
 - Backend API: <http://localhost:3001>
 - Backend Health: <http://localhost:3001/health>
-- Supabase Studio: <http://localhost:54323>
-- Supabase API: <http://localhost:54321>
 - Local LLM: <http://localhost:8080>
 
 **In-Cluster Services** (accessed via kubeconfig):
@@ -774,7 +761,7 @@ The MVP is complete when:
 **Core Functionality**:
 
 - [ ] `npm run dev` starts both frontend and backend
-- [ ] User can sign in with Supabase credentials
+- [ ] User can sign in with demo credentials
 - [ ] Issues table displays K8sGPT-detected issues (or mocks)
 - [ ] "Remediation" button generates and displays a plan
 - [ ] "Long-term" button generates and displays a plan
@@ -783,7 +770,7 @@ The MVP is complete when:
 **Infrastructure**:
 
 - [ ] `npm run setup` bootstraps entire project from scratch
-- [ ] `npm run infra:start` starts Supabase and K3d
+- [ ] `npm run infra:start` starts K3d
 - [ ] K8sGPT Operator deploys and detects issues from broken pods
 
 **Quality**:
@@ -801,24 +788,9 @@ The MVP is complete when:
 - Check Result CRDs: `kubectl get results -A`
 - View operator logs: `kubectl logs -n k8sgpt-operator-system -l app.kubernetes.io/name=k8sgpt-operator`
 
-**Supabase not starting**:
-
-- Ensure Docker is running: `docker ps`
-- Check Supabase status: `supabase status`
-- View logs: `supabase logs`
-- Reset if needed: `supabase stop --no-backup && supabase start`
-
-**Database connection issues**:
-
-- Verify `DATABASE_URL` in `backend/.env` is `postgresql://postgres:postgres@localhost:54322/postgres`
-- Check Supabase is running: `supabase status`
-- Run migrations: `npm run db:migrate`
-
 **Auth failures**:
 
-- Open Supabase Studio: <http://localhost:54323>
-- Check users in Authentication > Users
-- Verify `SUPABASE_URL` and `SUPABASE_ANON_KEY` match `supabase status` output
+- Verify demo users in `backend/src/services/auth-store.ts`
 - Verify JWT token is being sent: check browser Network tab
 
 **Local LLM not responding**:

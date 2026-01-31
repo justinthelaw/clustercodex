@@ -107,7 +107,7 @@ Central access control management:
 | ------------------------------------------------------------------------------ | ------------------------------ |
 | [React](https://react.dev) + [Vite](https://vitejs.dev)                        | Frontend UI                    |
 | [Express](https://expressjs.com)                                               | Backend API                    |
-| [Supabase](https://supabase.com)                                               | Auth (local Docker)            |
+| Local JWT (in-memory)                                                          | Auth (demo only)               |
 | [K8sGPT Operator](https://docs.k8sgpt.ai/getting-started/in-cluster-operator/) | In-cluster issue detection     |
 | [K3d](https://k3d.io/stable)                                                   | Local Kubernetes cluster       |
 | [OpenAI SDK](https://github.com/openai/openai-node)                            | LLM client (mock mode for MVP) |
@@ -124,7 +124,7 @@ Central access control management:
 ## Quick Start
 
 ```bash
-# Prerequisites: Node.js 20+, Docker, Supabase CLI, K3d, Helm, kubectl
+# Prerequisites: Node.js 20+, Docker, K3d, Helm, kubectl
 
 # Clone and setup
 git clone <repo-url>
@@ -132,7 +132,7 @@ cd clustercodex
 npm run setup
 
 # Start development (separate terminals)
-npm run infra:start     # Supabase + K3d cluster
+npm run infra:start     # K3d cluster
 npm run dev             # Frontend + Backend
 
 # Open http://localhost:5173
@@ -149,7 +149,6 @@ clustercodex/
 ├── backend/           # Express API server
 ├── scripts/           # Infrastructure orchestration
 ├── charts/            # Helm charts (K8sGPT Operator)
-├── supabase/          # Local Supabase configuration
 ├── IMPLEMENTATION.md  # Detailed implementation plan
 └── README.md          # This file
 ```
@@ -171,4 +170,5 @@ clustercodex/
 - **Agentic Execution**: Apply remediation plans with user approval
 - **Ticket Integration**: Create upstream issues for long-term fixes
 - **Multi-cluster Support**: Manage multiple clusters from one interface
+- **Storage and Auth**: True auth and data persistence using a durable solution (e.g., Supabase)
 - **Enhanced RBAC**: Per-action permissions beyond namespace/kind filtering
