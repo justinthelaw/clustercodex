@@ -1,6 +1,23 @@
-# Cluster Codex Implementation Plan (PoC)
+# Cluster Codex Implementation Plan
 
-This plan turns the README + analysis block into a concrete, demo-ready PoC. It makes decisions for the open questions with a bias toward speed, safety, and a controlled local environment.
+This document details the implementation plan for Cluster Codex MVP—a 4-hour proof-of-concept demonstrating the core workflow: authenticate → view detected issues → generate fix recommendations.
+
+## MVP Scope
+
+**In Scope**:
+
+- Supabase authentication (local Docker)
+- Issues table with K8sGPT-detected problems
+- Mock LLM responses for remediation and long-term plans
+- Read-only resource tabs (Pods, Deployments, Nodes, Events)
+- Basic admin page stub
+
+**Out of Scope (Post-MVP)**:
+
+- Real LLM integration (OpenAI API or local llama-server)
+- Database persistence (Prisma)
+- Access policy enforcement
+- Automated testing (Playwright, unit tests)
 
 ## PoC Decision Summary
 
@@ -55,49 +72,6 @@ This plan turns the README + analysis block into a concrete, demo-ready PoC. It 
 - Minimal schema optimized for demo and future expansion.
 - Accessed exclusively through Prisma ORM from Express backend.
 
-## Project Structure
-
-```bash
-clustercodex/
-├── frontend/                  # Stateless React app
-│   ├── src/
-│   │   ├── components/        # React components
-│   │   ├── pages/             # Page components (Landing, Admin)
-│   │   ├── services/          # API client, auth helpers
-│   │   ├── types/             # TypeScript interfaces (shared with backend)
-│   │   └── App.tsx
-│   ├── package.json
-│   ├── tsconfig.json
-│   └── vite.config.ts
-├── backend/                   # Express API server
-│   ├── src/
-│   │   ├── routes/            # Express route handlers
-│   │   ├── middleware/        # Auth, error handling
-│   │   ├── services/          # K8sGPT, Codex, K8s client
-│   │   ├── lib/               # Redaction, validation utilities
-│   │   ├── types/             # Shared TypeScript interfaces
-│   │   └── server.ts          # Express app entry point
-│   ├── prisma/
-│   │   ├── schema.prisma
-│   │   └── seed.ts
-│   ├── package.json
-│   └── tsconfig.json
-├── scripts/                   # Bash scripts for complex orchestration
-│   ├── setup.sh               # First-time dependency installation (Supabase, K3d, deps)
-│   ├── start-infra.sh         # Start all infrastructure (Supabase, K3d, K8sGPT Operator)
-│   ├── stop-infra.sh          # Stop all infrastructure
-│   ├── seed-broken-pods.sh    # Deploy broken pods to K3d for testing
-│   └── reset.sh               # Full reset (stop, clean volumes, restart)
-├── charts/                    # Helm charts for K3d cluster
-│   └── k8sgpt-operator/       # K8sGPT Operator deployment (no AI backend)
-│       ├── Chart.yaml
-│       └── values.yaml        # Configured for context-only mode
-├── supabase/                  # Supabase local config
-│   └── config.toml            # Local Supabase configuration
-├── package.json               # Root scripts for dev workflow
-└── README.md
-```
-
 ## Environment Configuration
 
 ### Backend `.env`
@@ -114,7 +88,6 @@ PORT=3001
 NODE_ENV=development
 
 # Kubernetes
-# K8sGPT Operator is accessed via Result CRDs in-cluster
 KUBECONFIG=~/.kube/config
 KUBE_CONTEXT=k3d-clustercodex
 
@@ -491,140 +464,223 @@ Unit tests must assert redaction.
 
 ## Phased Implementation
 
-### Phase 0: Bootstrap (15 minutes)
+The MVP is scoped for **~4 hours** of focused development. Each phase has clear deliverables and exit criteria.
 
-**Goal**: Get scaffolding in place so coding can begin.
+### Phase 0: Bootstrap (~45 minutes)
 
-- Create `frontend/`, `backend/`, and `scripts/` directories.
-- Initialize `package.json` in root, frontend, backend:
-  - Root: scripts for orchestration (see Root package.json Scripts section).
-  - Frontend: Vite + React + TypeScript template.
-  - Backend: Express + TypeScript + tsx.
-- Install dependencies:
-  - Frontend: `react`, `react-dom`, `@supabase/supabase-js`, `axios`.
-  - Backend: `express`, `@supabase/supabase-js`, `@prisma/client`, `@kubernetes/client-node`, `cors`, `openai`.
-  - Dev deps: `typescript`, `@types/node`, `@types/express`, `tsx`, `vite`, `concurrently`.
-- Create Helm values for K8sGPT Operator in `charts/k8sgpt-operator/`.
-- Create bash scripts in `scripts/` directory:
-  - `setup.sh`, `start-infra.sh`, `stop-infra.sh`, `seed-broken-pods.sh`, `reset.sh`.
-  - Make executable: `chmod +x scripts/*.sh`.
-- Create `.env.example` files in frontend and backend with all required variables.
-- Set up `tsconfig.json` for both frontend and backend.
-- Initialize Supabase local project: `supabase init`.
-- Create basic Express server that responds to `GET /health`.
-- Create basic Vite React app that renders "Cluster Codex".
-- Run `npm run setup` to verify full bootstrap works.
-- Verify both servers start with `npm run dev` and frontend can reach backend health endpoint.
+**Goal**: Project scaffolding, infrastructure scripts, and "hello world" for both frontend and backend.
 
-### Phase 1: Data + API (45 minutes)
+**Deliverables**:
 
-**Goal**: Database schema, auth middleware, and basic API endpoints with mocks.
+1. **Directory structure**:
+   - `frontend/` — Vite + React + TypeScript
+   - `backend/` — Express + TypeScript
+   - `scripts/` — Bash infrastructure scripts
+   - `charts/k8sgpt-operator/` — Helm values
+   - `supabase/` — Local Supabase config
 
-- Define Prisma schema in `backend/prisma/schema.prisma`.
-- Ensure Supabase Docker is running: `supabase start` (or `npm run infra:start`).
-- Get connection credentials from `supabase status` output.
-- Run `npm run db:migrate` to create tables.
-- Create seed script: `backend/prisma/seed.ts`:
-  - Manually create users in Supabase Auth UI or via SDK.
-  - Seed Cluster, AccessPolicy records for both users.
-- Run `npx prisma db seed`.
-- Create auth middleware: `backend/src/middleware/auth.ts`:
-  - Extract JWT from Authorization header.
-  - Validate with `supabase.auth.getUser(token)`.
-  - Attach `req.user` with user ID and role.
-- Create error handler middleware: `backend/src/middleware/error.ts`.
-- Build `/api/issues` endpoint with hardcoded mock data (array of 2-3 issues).
-- Build `/api/resources` endpoint with hardcoded mock data.
-- Apply auth middleware to all `/api/*` routes except `/health`.
-- Test with curl/Postman using real Supabase JWT.
+2. **Package initialization**:
+   - Root `package.json` with orchestration scripts
+   - Frontend `package.json` with: `react`, `react-dom`, `@supabase/supabase-js`, `axios`, `react-router-dom`
+   - Backend `package.json` with: `express`, `@supabase/supabase-js`, `cors`, `dotenv`
+   - Dev dependencies: `typescript`, `@types/*`, `tsx`, `vite`, `concurrently`
 
-### Phase 2: UI (45 minutes)
+3. **Infrastructure scripts** (stubbed, minimal functionality):
+   - `scripts/setup.sh` — Install deps, init Supabase, create K3d cluster
+   - `scripts/start-infra.sh` — Start Supabase and K3d
+   - `scripts/stop-infra.sh` — Stop Supabase and K3d
+   - `scripts/seed-broken-pods.sh` — Deploy test pods (placeholder)
 
-**Goal**: Functional frontend that displays data and handles auth.
+4. **Configuration files**:
+   - `tsconfig.json` for frontend and backend
+   - `.env.example` files with all required variables
+   - `vite.config.ts` with proxy to backend
 
-- Set up Supabase client in `frontend/src/services/supabase.ts`.
-- Create API client: `frontend/src/services/api.ts`:
-  - Axios instance with interceptor to add Authorization header.
-  - Methods for `getIssues()`, `getResources()`, `createRemediationPlan()`.
-- Create login page: `frontend/src/pages/Login.tsx`:
-  - Email/password form.
-  - Call Supabase sign in.
-  - Redirect to landing on success.
-- Create issues table component: `frontend/src/components/IssuesTable.tsx`:
-  - Fetch from `/api/issues` on mount.
-  - Display title, severity, kind, namespace, name.
-  - Two buttons per row: "Remediation" and "Long-term".
-- Create remediation modal: `frontend/src/components/RemediationModal.tsx`:
-  - Text area for user context.
-  - Call `/api/plans/remediation` on submit.
-  - Display mock response (hardcoded in backend).
-- Create plan renderer: `frontend/src/components/PlanRenderer.tsx`:
-  - Parse and display structured JSON (steps, risk level, summary).
-- Create resource tabs: `frontend/src/pages/ResourceTabs.tsx`:
-  - Tabs for Pods, Deployments, Nodes, Events.
-  - Simple table displaying mock data from `/api/resources`.
-- Create admin page: `frontend/src/pages/Admin.tsx`:
-  - Form to edit namespace and kind allow lists.
-  - POST to `/api/admin/access-policy`.
-- Wire up React Router for navigation.
-- Test full auth flow and basic CRUD operations.
+5. **Minimal running apps**:
+   - Backend: Express server with `GET /health` returning `{ status: "ok" }`
+   - Frontend: Vite React app displaying "Cluster Codex" and fetching `/health`
 
-### Phase 3: Integrations (60 minutes)
+**Exit Criteria**:
 
-**Goal**: Replace mocks with real services.
+- [ ] `npm install` succeeds in root, frontend, and backend
+- [ ] `npm run dev` starts both servers without errors
+- [ ] Frontend at `http://localhost:5173` displays "Cluster Codex"
+- [ ] Frontend successfully calls `http://localhost:3001/health`
+- [ ] `npm run infra:start` starts Supabase (K3d optional for this phase)
 
-- Start infrastructure: `npm run infra:start` (starts Supabase, K3d, K8sGPT).
-- Start local LLM: `npm run llm:start` (in separate terminal, requires GPU).
-- Create K8sGPT client: `backend/src/services/k8sgpt-client.ts`:
-  - Connect to HTTP MCP server at `http://localhost:8089`.
-  - Implement `analyze()`, `listResources()`, `getResource()`, `getEvents()`, `getLogs()`.
-- Create Kubernetes client: `backend/src/services/k8s-client.ts`:
-  - Use official `@kubernetes/client-node` package.
-  - Load kubeconfig from `~/.kube/config` using `KubeConfig.loadFromDefault()`.
-  - Create `CoreV1Api` and `AppsV1Api` clients for resource queries.
-  - Implement read-only methods for Pods, Deployments, Nodes, Events.
-- Create redaction utility: `backend/src/lib/redactor.ts`:
-  - Strip secrets, env vars, base64 blobs.
-  - Unit tests in `redactor.test.ts`.
-- Create Codex service: `backend/src/services/codex-service.ts`:
-  - Use OpenAI SDK configured for local llama-server.
-  - Implement `generateRemediationPlan()` and `generateLongTermPlan()`.
-- Create Codex mock service: `backend/src/services/codex-mock.ts`:
-  - 3 hardcoded responses for common issues (fallback if no GPU).
-- Update `/api/issues` to call K8sGPT `analyze()` and map to Issue schema.
-- Update `/api/resources` to call K8s client.
-- Update `/api/plans/remediation` to:
-  - Enrich issue context with K8sGPT tools.
-  - Redact sensitive data.
-  - Call Codex service (or mock if `CODEX_MOCK_MODE=true`).
-  - Validate response against schema.
-  - Store Plan and PromptRun in DB.
-- Update `/api/plans/long-term` similarly.
-- Deploy sample broken pods: `npm run seed:broken-pods`.
-- Verify issues appear in UI and plans generate successfully.
+### Phase 1: Auth + Mock API (~60 minutes)
 
-### Phase 4: Admin + Testing (30 minutes)
+**Goal**: Working authentication flow and API endpoints returning mock data.
 
-**Goal**: Finalize admin features and verify with tests.
+**Deliverables**:
 
-- Implement `/api/admin/access-policy` POST handler:
-  - Update AccessPolicy in database.
-  - Create AuditLog entry.
-- Add policy enforcement to all endpoints:
-  - Filter issues by namespace/kind allow lists.
-  - Filter resources by namespace/kind allow lists.
-- Write Playwright test: `tests/happy-path.spec.ts`:
-  - Sign in as user.
-  - See issues table.
-  - Click "Remediation" on first issue.
-  - Enter context and submit.
-  - Verify plan renders.
-  - Navigate to resource tabs and verify data.
-- Write schema validation test: `tests/codex-schema.test.ts`:
-  - Test remediation and long-term output schemas.
-- Write redaction unit tests: `tests/redactor.test.ts`.
-- Run all tests and fix failures.
-- Clean up console logs and add basic error toasts in frontend.
+1. **Supabase Auth integration**:
+   - Backend middleware: Extract JWT from `Authorization` header, validate with Supabase
+   - Frontend: Login page with email/password form
+   - Protected routes redirect to login when unauthenticated
+
+2. **Mock API endpoints**:
+   - `GET /api/issues` — Returns hardcoded array of 3 issues (CrashLoopBackOff, ImagePullBackOff, OOMKilled)
+   - `GET /api/resources?kind=Pod` — Returns hardcoded array of pods
+   - `POST /api/plans/remediation` — Returns hardcoded remediation plan JSON
+   - `POST /api/plans/long-term` — Returns hardcoded long-term plan JSON
+
+3. **Error handling**:
+   - Express error middleware with consistent JSON error format
+   - Frontend error boundaries and toast notifications
+
+4. **Seed data** (if time permits):
+   - Create test users in Supabase Auth: `admin@clustercodex.local`, `user@clustercodex.local`
+
+**Exit Criteria**:
+
+- [ ] User can sign in with Supabase credentials
+- [ ] Unauthenticated requests to `/api/*` return 401
+- [ ] Authenticated requests to `/api/issues` return mock issue array
+- [ ] `POST /api/plans/remediation` returns valid plan JSON structure
+
+### Phase 2: Frontend UI (~75 minutes)
+
+**Goal**: Complete UI with all screens functional using mock API data.
+
+**Deliverables**:
+
+1. **Navigation and layout**:
+   - React Router setup with routes: `/login`, `/`, `/resources`, `/admin`
+   - Header with navigation and logout button
+   - Protected route wrapper
+
+2. **Login page** (`/login`):
+   - Email/password form
+   - Error display for invalid credentials
+   - Redirect to landing on success
+
+3. **Issues landing page** (`/`):
+   - Issues table with columns: Title, Severity, Kind, Namespace, Name, Actions
+   - "Remediation" button per row → opens modal
+   - "Long-term" button per row → opens modal
+   - Empty state: "No issues detected"
+   - Loading state with spinner
+
+4. **Plan generation modal**:
+   - Text area for user context (optional)
+   - Submit button triggers API call
+   - Loading state during generation
+   - Display generated plan with structured formatting
+
+5. **Plan renderer component**:
+   - Renders remediation plan: summary, risk level, steps with kubectl commands
+   - Renders long-term plan: summary, hypotheses, recommendations
+   - Copy-to-clipboard for kubectl commands
+
+6. **Resource tabs page** (`/resources`):
+   - Tab navigation: Pods, Deployments, Nodes, Events
+   - Simple table per tab showing mock data
+   - No drill-down (read-only display)
+
+7. **Admin page** (`/admin`) — MVP stub:
+   - Display current user info
+   - Placeholder for access policy form
+
+**Exit Criteria**:
+
+- [ ] User can navigate between all pages
+- [ ] Issues table displays mock data correctly
+- [ ] Clicking "Remediation" opens modal and generates plan
+- [ ] Plan displays with proper formatting
+- [ ] Resource tabs show mock data for each resource type
+
+### Phase 3: K8sGPT Integration (~60 minutes)
+
+**Goal**: Replace mock issues with real K8sGPT data from the cluster.
+
+**Deliverables**:
+
+1. **K3d cluster with broken pods**:
+   - `scripts/seed-broken-pods.sh` deploys 3 intentionally broken pods:
+     - `crashloop-pod`: Container that exits immediately (CrashLoopBackOff)
+     - `imagepull-pod`: References non-existent image (ImagePullBackOff)
+     - `oom-pod`: Memory limit too low for workload (OOMKilled)
+
+2. **K8sGPT Operator deployment**:
+   - Helm chart in `charts/k8sgpt-operator/`
+   - K8sGPT custom resource configured for context-only mode (no AI backend)
+   - Operator creates Result CRDs for detected issues
+
+3. **Backend K8sGPT client**:
+   - `backend/src/services/k8sgpt-client.ts`
+   - Uses `@kubernetes/client-node` to read K8sGPT Result CRDs
+   - Maps Result CRDs to Issue schema
+
+4. **Update `/api/issues`**:
+   - Replace mock data with K8sGPT Result CRD data
+   - Graceful fallback to empty array if K8sGPT unavailable
+
+**Exit Criteria**:
+
+- [ ] K3d cluster running with 3 broken pods
+- [ ] K8sGPT Operator deployed and creating Result CRDs
+- [ ] `/api/issues` returns real issues detected by K8sGPT
+- [ ] Frontend displays real cluster issues
+
+### Phase 4: Polish + Demo Prep (~30 minutes)
+
+**Goal**: Clean up rough edges and ensure demo-ready state.
+
+**Deliverables**:
+
+1. **Error handling improvements**:
+   - User-friendly error messages (not raw stack traces)
+   - Toast notifications for API errors
+   - Graceful degradation when services unavailable
+
+2. **Loading states**:
+   - Skeleton loaders for tables
+   - Spinner during plan generation
+   - Disabled buttons while loading
+
+3. **Demo data verification**:
+   - Verify all 3 broken pods create K8sGPT Results
+   - Verify mock plans are realistic and helpful
+   - Test full flow: login → view issues → generate plan
+
+4. **Documentation**:
+   - Update README with final quick start
+   - Verify all scripts work on clean checkout
+
+**Exit Criteria**:
+
+- [ ] Full demo flow works without errors
+- [ ] Error states display helpful messages
+- [ ] Loading states prevent double-submissions
+- [ ] `npm run setup && npm run infra:start && npm run dev` works on clean clone
+
+---
+
+## Post-MVP Phases (Future Work)
+
+### Phase 5: Real Kubernetes Client
+
+Replace mock resources with live cluster data:
+
+- Implement `@kubernetes/client-node` for Pods, Deployments, Nodes, Events
+- Add namespace/kind filtering based on user access policies
+
+### Phase 6: Real LLM Integration
+
+Replace mock plans with actual LLM generation:
+
+- OpenAI SDK with configurable base URL (OpenAI API or local llama-server)
+- Implement redaction utility for sensitive data
+- Validate LLM responses against output schemas
+
+### Phase 7: Database Persistence
+
+Add Prisma for data persistence:
+
+- Store generated plans for history
+- Audit logging for plan generation
+- Access policy storage
 
 ## Local Development Workflow
 
@@ -711,21 +767,30 @@ npm run test:unit
 npm run test:e2e
 ```
 
-## Definition of Done (PoC)
+## Definition of Done (MVP)
 
-- Both frontend and backend start with single `npm run dev` command.
-- User can sign in with seeded credentials.
-- Issues list renders from K8sGPT (or mock if K8sGPT unavailable).
-- Remediation plan generates, validates against schema, and displays.
-- Long-term plan generates, validates against schema, and displays.
-- Plans are persisted to database with PromptRun metadata.
-- Redaction tests pass (no secrets/env vars in prompts).
-- Policies filter resources/issues in UI and API based on user role.
-- Resource tabs display Pods, Deployments, Nodes, Events.
-- Admin can update access policies.
-- Playwright happy path test passes.
-- All API endpoints require authentication.
-- Error states display user-friendly messages.
+The MVP is complete when:
+
+**Core Functionality**:
+
+- [ ] `npm run dev` starts both frontend and backend
+- [ ] User can sign in with Supabase credentials
+- [ ] Issues table displays K8sGPT-detected issues (or mocks)
+- [ ] "Remediation" button generates and displays a plan
+- [ ] "Long-term" button generates and displays a plan
+- [ ] Resource tabs display Pods, Deployments, Nodes, Events
+
+**Infrastructure**:
+
+- [ ] `npm run setup` bootstraps entire project from scratch
+- [ ] `npm run infra:start` starts Supabase and K3d
+- [ ] K8sGPT Operator deploys and detects issues from broken pods
+
+**Quality**:
+
+- [ ] All API endpoints require authentication
+- [ ] Error states display user-friendly messages
+- [ ] Loading states prevent double-submissions
 
 ## Troubleshooting Quick Reference
 
