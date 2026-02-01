@@ -1,5 +1,6 @@
 const AUTH_KEY = "clustercodex.auth";
 const LEGACY_TOKEN_KEY = "clustercodex.token";
+export const AUTH_EVENT = "clustercodex:auth";
 
 export type AuthState = {
   token: string;
@@ -34,9 +35,15 @@ export function getAuth(): AuthState | null {
 export function setAuth(auth: AuthState) {
   localStorage.setItem(AUTH_KEY, JSON.stringify(auth));
   localStorage.removeItem(LEGACY_TOKEN_KEY);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(AUTH_EVENT));
+  }
 }
 
 export function clearAuth() {
   localStorage.removeItem(AUTH_KEY);
   localStorage.removeItem(LEGACY_TOKEN_KEY);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(AUTH_EVENT));
+  }
 }

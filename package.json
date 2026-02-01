@@ -10,8 +10,7 @@
     "dev:backend": "npm --prefix backend run dev",
     "dev:frontend": "npm --prefix frontend run dev",
     "infra:start": "./scripts/start-infra.sh",
-    "infra:stop": "./scripts/stop-infra.sh",
-    "setup": "./scripts/setup.sh"
+    "infra:stop": "./scripts/stop-infra.sh"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

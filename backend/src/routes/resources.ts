@@ -1,10 +1,23 @@
 import { Router } from "express";
-import { AppsV1Api, CoreV1Api, KubeConfig } from "@kubernetes/client-node";
-import { promisify } from "node:util";
-import { execFile } from "node:child_process";
+import {
+  AppsV1Api,
+  BatchV1Api,
+  CoreV1Api,
+  KubeConfig,
+  NetworkingV1Api,
+  ApiextensionsV1Api
+} from "@kubernetes/client-node";
+import { getPolicyForUser, filterResourcesByPolicy } from "../services/access-policy.js";
 
 const router = Router();
-const execFileAsync = promisify(execFile);
+
+router.get("/policy", (req, res) => {
+  const policy = getPolicyForUser(req.user);
+  if (!policy) {
+    return res.json({ namespaceAllowList: [], kindAllowList: [] });
+  }
+  return res.json(policy);
+});
 
 function buildKubeConfig(): KubeConfig {
   const kc = new KubeConfig();
@@ -57,102 +70,6 @@ function eventTime(event: any): string {
   );
 }
 
-function safeResourceName(value: string): string | null {
-  if (!value) return null;
-  if (!/^[a-zA-Z0-9.\-\/]+$/.test(value)) return null;
-  return value;
-}
-
-function formatAge(timestamp?: string): string {
-  if (!timestamp) return "";
-  const created = Date.parse(timestamp);
-  if (Number.isNaN(created)) return "";
-  const seconds = Math.max(0, Math.floor((Date.now() - created) / 1000));
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h`;
-  const days = Math.floor(hours / 24);
-  return `${days}d`;
-}
-
-async function listApiResources(): Promise<any[]> {
-  const { stdout } = await execFileAsync("kubectl", ["api-resources", "-o", "wide", "--no-headers"]);
-  return stdout
-    .trim()
-    .split("\n")
-    .filter(Boolean)
-    .map((line) => {
-      const parts = line.trim().split(/\s+/);
-      if (parts.length < 5) return null;
-      const verbs = parts[parts.length - 1];
-      const kind = parts[parts.length - 2];
-      const namespaced = parts[parts.length - 3];
-      const apiVersion = parts[parts.length - 4];
-      const name = parts[0];
-      const shortNames = parts.slice(1, parts.length - 4).join(",") || "";
-      return {
-        name,
-        shortNames,
-        apiVersion,
-        namespaced: namespaced.toLowerCase() === "true",
-        kind,
-        verbs
-      };
-    })
-    .filter(Boolean);
-}
-
-async function listResourceInstances(resource: string, namespace?: string) {
-  const args = ["get", resource];
-  if (namespace) {
-    args.push("-n", namespace);
-  } else {
-    args.push("-A");
-  }
-  args.push("-o", "json");
-  const { stdout } = await execFileAsync("kubectl", args);
-  const parsed = JSON.parse(stdout);
-  const items = parsed?.items || [];
-  return items.map((item: any) => ({
-    apiVersion: item.apiVersion || "",
-    kind: item.kind || "",
-    name: item.metadata?.name || "unknown",
-    namespace: item.metadata?.namespace || "",
-    age: formatAge(item.metadata?.creationTimestamp)
-  }));
-}
-
-router.get("/kinds", async (_req, res) => {
-  try {
-    const resources = await listApiResources();
-    return res.json(resources);
-  } catch (err) {
-    console.warn("Failed to list api-resources", err);
-    return res.json([]);
-  }
-});
-
-router.get("/list", async (req, res) => {
-  const resource = safeResourceName(String(req.query.resource || ""));
-  const namespace = String(req.query.namespace || "");
-  if (!resource) {
-    return res.status(400).json({
-      error: "Missing or invalid query param: resource",
-      code: "VALIDATION_ERROR",
-      details: { field: "resource" }
-    });
-  }
-
-  try {
-    const items = await listResourceInstances(resource, namespace || undefined);
-    return res.json(items);
-  } catch (err) {
-    console.warn("Failed to list resource instances", err);
-    return res.json([]);
-  }
-});
 
 router.get("/", (req, res) => {
   const kind = String(req.query.kind || "");
@@ -165,9 +82,25 @@ router.get("/", (req, res) => {
     });
   }
 
+  const policy = getPolicyForUser(req.user);
+  if (!policy) {
+    return res.json([]);
+  }
+
+  if (!policy.kindAllowList.includes("*") && !policy.kindAllowList.includes(kind)) {
+    return res.json([]);
+  }
+
+  if (namespace && !policy.namespaceAllowList.includes("*") && !policy.namespaceAllowList.includes(namespace)) {
+    return res.json([]);
+  }
+
   const kc = buildKubeConfig();
   const core = kc.makeApiClient(CoreV1Api);
   const apps = kc.makeApiClient(AppsV1Api);
+  const batch = kc.makeApiClient(BatchV1Api);
+  const networking = kc.makeApiClient(NetworkingV1Api);
+  const apix = kc.makeApiClient(ApiextensionsV1Api);
 
   const lower = kind.toLowerCase();
 
@@ -180,14 +113,14 @@ router.get("/", (req, res) => {
         const raw = response?.body ?? response;
         const items = raw?.items || [];
         return res.json(
-          items.map((pod: any) => ({
+          filterResourcesByPolicy(items.map((pod: any) => ({
             type: "Pod",
             name: pod.metadata?.name || "unknown",
             namespace: pod.metadata?.namespace || "",
             status: formatPodStatus(pod),
             restarts: countRestarts(pod),
             node: pod.spec?.nodeName || ""
-          }))
+          })), req.user)
         );
       })
       .catch((err: any) => {
@@ -205,18 +138,322 @@ router.get("/", (req, res) => {
         const raw = response?.body ?? response;
         const items = raw?.items || [];
         return res.json(
-          items.map((deploy: any) => ({
+          filterResourcesByPolicy(items.map((deploy: any) => ({
             type: "Deployment",
             name: deploy.metadata?.name || "unknown",
             namespace: deploy.metadata?.namespace || "",
             ready: `${deploy.status?.readyReplicas || 0}/${deploy.status?.replicas || 0}`,
             updated: deploy.status?.updatedReplicas || 0,
             available: deploy.status?.availableReplicas || 0
-          }))
+          })), req.user)
         );
       })
       .catch((err: any) => {
         console.warn("Failed to list deployments", err);
+        return res.json([]);
+      });
+  }
+
+  if (lower === "daemonset") {
+    const list = namespace
+      ? apps.listNamespacedDaemonSet({ namespace })
+      : apps.listDaemonSetForAllNamespaces();
+    return list
+      .then((response: any) => {
+        const raw = response?.body ?? response;
+        const items = raw?.items || [];
+        return res.json(
+          filterResourcesByPolicy(items.map((ds: any) => ({
+            type: "DaemonSet",
+            name: ds.metadata?.name || "unknown",
+            namespace: ds.metadata?.namespace || "",
+            ready: `${ds.status?.numberReady || 0}/${ds.status?.desiredNumberScheduled || 0}`,
+            updated: ds.status?.updatedNumberScheduled || 0,
+            available: ds.status?.numberAvailable || 0
+          })), req.user)
+        );
+      })
+      .catch((err: any) => {
+        console.warn("Failed to list daemonsets", err);
+        return res.json([]);
+      });
+  }
+
+  if (lower === "replicaset") {
+    const list = namespace
+      ? apps.listNamespacedReplicaSet({ namespace })
+      : apps.listReplicaSetForAllNamespaces();
+    return list
+      .then((response: any) => {
+        const raw = response?.body ?? response;
+        const items = raw?.items || [];
+        return res.json(
+          filterResourcesByPolicy(items.map((rs: any) => ({
+            type: "ReplicaSet",
+            name: rs.metadata?.name || "unknown",
+            namespace: rs.metadata?.namespace || "",
+            ready: `${rs.status?.readyReplicas || 0}/${rs.status?.replicas || 0}`,
+            updated: rs.status?.availableReplicas || 0,
+            available: rs.status?.availableReplicas || 0
+          })), req.user)
+        );
+      })
+      .catch((err: any) => {
+        console.warn("Failed to list replicasets", err);
+        return res.json([]);
+      });
+  }
+
+  if (lower === "statefulset") {
+    const list = namespace
+      ? apps.listNamespacedStatefulSet({ namespace })
+      : apps.listStatefulSetForAllNamespaces();
+    return list
+      .then((response: any) => {
+        const raw = response?.body ?? response;
+        const items = raw?.items || [];
+        return res.json(
+          filterResourcesByPolicy(items.map((ss: any) => ({
+            type: "StatefulSet",
+            name: ss.metadata?.name || "unknown",
+            namespace: ss.metadata?.namespace || "",
+            ready: `${ss.status?.readyReplicas || 0}/${ss.status?.replicas || 0}`,
+            updated: ss.status?.updatedReplicas || 0,
+            available: ss.status?.currentReplicas || 0
+          })), req.user)
+        );
+      })
+      .catch((err: any) => {
+        console.warn("Failed to list statefulsets", err);
+        return res.json([]);
+      });
+  }
+
+  if (lower === "job") {
+    const list = namespace
+      ? batch.listNamespacedJob({ namespace })
+      : batch.listJobForAllNamespaces();
+    return list
+      .then((response: any) => {
+        const raw = response?.body ?? response;
+        const items = raw?.items || [];
+        return res.json(
+          filterResourcesByPolicy(items.map((job: any) => ({
+            type: "Job",
+            name: job.metadata?.name || "unknown",
+            namespace: job.metadata?.namespace || "",
+            status: job.status?.succeeded ? "Complete" : job.status?.failed ? "Failed" : "Running",
+            completions: job.spec?.completions || 0
+          })), req.user)
+        );
+      })
+      .catch((err: any) => {
+        console.warn("Failed to list jobs", err);
+        return res.json([]);
+      });
+  }
+
+  if (lower === "cronjob") {
+    const list = namespace
+      ? batch.listNamespacedCronJob({ namespace })
+      : batch.listCronJobForAllNamespaces();
+    return list
+      .then((response: any) => {
+        const raw = response?.body ?? response;
+        const items = raw?.items || [];
+        return res.json(
+          filterResourcesByPolicy(items.map((cj: any) => ({
+            type: "CronJob",
+            name: cj.metadata?.name || "unknown",
+            namespace: cj.metadata?.namespace || "",
+            schedule: cj.spec?.schedule || "",
+            suspend: Boolean(cj.spec?.suspend)
+          })), req.user)
+        );
+      })
+      .catch((err: any) => {
+        console.warn("Failed to list cronjobs", err);
+        return res.json([]);
+      });
+  }
+
+  if (lower === "service") {
+    const list = namespace
+      ? core.listNamespacedService({ namespace })
+      : core.listServiceForAllNamespaces();
+    return list
+      .then((response: any) => {
+        const raw = response?.body ?? response;
+        const items = raw?.items || [];
+        return res.json(
+          filterResourcesByPolicy(items.map((svc: any) => ({
+            type: "Service",
+            name: svc.metadata?.name || "unknown",
+            namespace: svc.metadata?.namespace || "",
+            serviceType: svc.spec?.type || "",
+            clusterIP: svc.spec?.clusterIP || ""
+          })), req.user)
+        );
+      })
+      .catch((err: any) => {
+        console.warn("Failed to list services", err);
+        return res.json([]);
+      });
+  }
+
+  if (lower === "ingress") {
+    const list = namespace
+      ? networking.listNamespacedIngress({ namespace })
+      : networking.listIngressForAllNamespaces();
+    return list
+      .then((response: any) => {
+        const raw = response?.body ?? response;
+        const items = raw?.items || [];
+        return res.json(
+          filterResourcesByPolicy(items.map((ing: any) => ({
+            type: "Ingress",
+            name: ing.metadata?.name || "unknown",
+            namespace: ing.metadata?.namespace || "",
+            className: ing.spec?.ingressClassName || "",
+            hosts: (ing.spec?.rules || []).map((rule: any) => rule.host).filter(Boolean).join(",")
+          })), req.user)
+        );
+      })
+      .catch((err: any) => {
+        console.warn("Failed to list ingresses", err);
+        return res.json([]);
+      });
+  }
+
+  if (lower === "namespace") {
+    return core
+      .listNamespace()
+      .then((response: any) => {
+        const raw = response?.body ?? response;
+        const items = raw?.items || [];
+        return res.json(
+          filterResourcesByPolicy(items.map((ns: any) => ({
+            type: "Namespace",
+            name: ns.metadata?.name || "unknown",
+            status: ns.status?.phase || ""
+          })), req.user)
+        );
+      })
+      .catch((err: any) => {
+        console.warn("Failed to list namespaces", err);
+        return res.json([]);
+      });
+  }
+
+  if (lower === "configmap") {
+    const list = namespace
+      ? core.listNamespacedConfigMap({ namespace })
+      : core.listConfigMapForAllNamespaces();
+    return list
+      .then((response: any) => {
+        const raw = response?.body ?? response;
+        const items = raw?.items || [];
+        return res.json(
+          filterResourcesByPolicy(items.map((cm: any) => ({
+            type: "ConfigMap",
+            name: cm.metadata?.name || "unknown",
+            namespace: cm.metadata?.namespace || "",
+            dataKeys: Object.keys(cm.data || {}).length
+          })), req.user)
+        );
+      })
+      .catch((err: any) => {
+        console.warn("Failed to list configmaps", err);
+        return res.json([]);
+      });
+  }
+
+  if (lower === "secret") {
+    const list = namespace
+      ? core.listNamespacedSecret({ namespace })
+      : core.listSecretForAllNamespaces();
+    return list
+      .then((response: any) => {
+        const raw = response?.body ?? response;
+        const items = raw?.items || [];
+        return res.json(
+          filterResourcesByPolicy(items.map((secret: any) => ({
+            type: "Secret",
+            name: secret.metadata?.name || "unknown",
+            namespace: secret.metadata?.namespace || "",
+            secretType: secret.type || ""
+          })), req.user)
+        );
+      })
+      .catch((err: any) => {
+        console.warn("Failed to list secrets", err);
+        return res.json([]);
+      });
+  }
+
+  if (lower === "serviceaccount") {
+    const list = namespace
+      ? core.listNamespacedServiceAccount({ namespace })
+      : core.listServiceAccountForAllNamespaces();
+    return list
+      .then((response: any) => {
+        const raw = response?.body ?? response;
+        const items = raw?.items || [];
+        return res.json(
+          filterResourcesByPolicy(items.map((sa: any) => ({
+            type: "ServiceAccount",
+            name: sa.metadata?.name || "unknown",
+            namespace: sa.metadata?.namespace || ""
+          })), req.user)
+        );
+      })
+      .catch((err: any) => {
+        console.warn("Failed to list serviceaccounts", err);
+        return res.json([]);
+      });
+  }
+
+  if (lower === "persistentvolume") {
+    return core
+      .listPersistentVolume()
+      .then((response: any) => {
+        const raw = response?.body ?? response;
+        const items = raw?.items || [];
+        return res.json(
+          filterResourcesByPolicy(items.map((pv: any) => ({
+            type: "PersistentVolume",
+            name: pv.metadata?.name || "unknown",
+            status: pv.status?.phase || "",
+            capacity: pv.spec?.capacity?.storage || ""
+          })), req.user)
+        );
+      })
+      .catch((err: any) => {
+        console.warn("Failed to list persistentvolumes", err);
+        return res.json([]);
+      });
+  }
+
+  if (lower === "persistentvolumeclaim") {
+    const list = namespace
+      ? core.listNamespacedPersistentVolumeClaim({ namespace })
+      : core.listPersistentVolumeClaimForAllNamespaces();
+    return list
+      .then((response: any) => {
+        const raw = response?.body ?? response;
+        const items = raw?.items || [];
+        return res.json(
+          filterResourcesByPolicy(items.map((pvc: any) => ({
+            type: "PersistentVolumeClaim",
+            name: pvc.metadata?.name || "unknown",
+            namespace: pvc.metadata?.namespace || "",
+            status: pvc.status?.phase || "",
+            capacity: pvc.status?.capacity?.storage || ""
+          })), req.user)
+        );
+      })
+      .catch((err: any) => {
+        console.warn("Failed to list persistentvolumeclaims", err);
         return res.json([]);
       });
   }
@@ -228,7 +465,7 @@ router.get("/", (req, res) => {
         const raw = response?.body ?? response;
         const items = raw?.items || [];
         return res.json(
-          items.map((node: any) => ({
+          filterResourcesByPolicy(items.map((node: any) => ({
             type: "Node",
             name: node.metadata?.name || "unknown",
             status:
@@ -237,7 +474,7 @@ router.get("/", (req, res) => {
                 : "NotReady",
             roles: nodeRoles(node),
             version: node.status?.nodeInfo?.kubeletVersion || ""
-          }))
+          })), req.user)
         );
       })
       .catch((err: any) => {
@@ -255,7 +492,7 @@ router.get("/", (req, res) => {
         const raw = response?.body ?? response;
         const items = raw?.items || [];
         return res.json(
-          items.map((event: any) => ({
+          filterResourcesByPolicy(items.map((event: any) => ({
             type: "Event",
             namespace: event.metadata?.namespace || "",
             reason: event.reason || "",
@@ -265,11 +502,32 @@ router.get("/", (req, res) => {
               ""
             ),
             lastTimestamp: eventTime(event)
-          }))
+          })), req.user)
         );
       })
       .catch((err: any) => {
         console.warn("Failed to list events", err);
+        return res.json([]);
+      });
+  }
+
+  if (lower === "crd" || lower === "customresourcedefinition") {
+    return apix
+      .listCustomResourceDefinition()
+      .then((response: any) => {
+        const raw = response?.body ?? response;
+        const items = raw?.items || [];
+        return res.json(
+          filterResourcesByPolicy(items.map((crd: any) => ({
+            type: "CustomResourceDefinition",
+            name: crd.metadata?.name || "unknown",
+            scope: crd.spec?.scope || "",
+            group: crd.spec?.group || ""
+          })), req.user)
+        );
+      })
+      .catch((err: any) => {
+        console.warn("Failed to list CRDs", err);
         return res.json([]);
       });
   }

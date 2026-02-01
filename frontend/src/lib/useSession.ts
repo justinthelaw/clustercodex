@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getAuth, type AuthState } from "./auth";
+import { AUTH_EVENT, getAuth, type AuthState } from "./auth";
 
 type SessionState = {
   auth: AuthState | null;
@@ -17,7 +17,11 @@ export function useSession(): SessionState {
 
     const handler = () => setAuth(getAuth());
     window.addEventListener("storage", handler);
-    return () => window.removeEventListener("storage", handler);
+    window.addEventListener(AUTH_EVENT, handler);
+    return () => {
+      window.removeEventListener("storage", handler);
+      window.removeEventListener(AUTH_EVENT, handler);
+    };
   }, []);
 
   return { auth, loading };

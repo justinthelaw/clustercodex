@@ -1,4 +1,10 @@
-import { KubeConfig, CustomObjectsApi, CoreV1Api } from "@kubernetes/client-node";
+import {
+  KubeConfig,
+  CustomObjectsApi,
+  CoreV1Api,
+  KubernetesObjectApi,
+  dumpYaml
+} from "@kubernetes/client-node";
 
 export type K8sGPTIssue = {
   id: string;
@@ -13,6 +19,7 @@ export type K8sGPTIssue = {
     name: string;
     errorText: string;
     eventsTable: string;
+    definition?: string;
   };
 };
 
@@ -111,11 +118,87 @@ async function fetchEvents(
   return buildEventsTable(items);
 }
 
+function pickApiVersion(result: any, spec: any, status: any): string {
+  return (
+    result?.apiVersion ||
+    spec?.apiVersion ||
+    status?.apiVersion ||
+    result?.version ||
+    spec?.version ||
+    status?.version ||
+    ""
+  );
+}
+
+function inferApiVersion(kind: string): string {
+  const normalized = (kind || "").toLowerCase();
+  const coreKinds = new Set([
+    "pod",
+    "service",
+    "configmap",
+    "secret",
+    "namespace",
+    "node",
+    "serviceaccount",
+    "persistentvolume",
+    "persistentvolumeclaim",
+    "event"
+  ]);
+  if (coreKinds.has(normalized)) {
+    return "v1";
+  }
+
+  const appsKinds = new Set(["deployment", "replicaset", "statefulset", "daemonset"]);
+  if (appsKinds.has(normalized)) {
+    return "apps/v1";
+  }
+
+  const batchKinds = new Set(["job", "cronjob"]);
+  if (batchKinds.has(normalized)) {
+    return "batch/v1";
+  }
+
+  if (normalized === "ingress") {
+    return "networking.k8s.io/v1";
+  }
+
+  if (normalized === "customresourcedefinition" || normalized === "crd") {
+    return "apiextensions.k8s.io/v1";
+  }
+
+  return "";
+}
+
+async function fetchDefinition(
+  api: KubernetesObjectApi,
+  apiVersion: string,
+  kind: string,
+  namespace: string,
+  name: string
+): Promise<string> {
+  if (!apiVersion || !kind || !name) {
+    return "No definition found.";
+  }
+
+  try {
+    const metadata = namespace ? { name, namespace } : { name };
+    const resource = await api.read({
+      apiVersion,
+      kind,
+      metadata
+    });
+    return dumpYaml(resource);
+  } catch (err) {
+    return "No definition found.";
+  }
+}
+
 export async function listK8sGPTIssues(): Promise<K8sGPTIssue[]> {
   const namespace = process.env.K8SGPT_NAMESPACE || "k8sgpt-operator-system";
   const kc = buildKubeConfig();
   const api = kc.makeApiClient(CustomObjectsApi);
   const core = kc.makeApiClient(CoreV1Api);
+  const objectApi = KubernetesObjectApi.makeApiClient(kc);
 
   const response = await api.listNamespacedCustomObject({
     group: GROUP,
@@ -140,9 +223,11 @@ export async function listK8sGPTIssues(): Promise<K8sGPTIssue[]> {
     if (Array.isArray(results) && results.length > 0) {
       return results.map(async (result: any, idx: number) => {
         const kind = result.kind || spec.kind || "Unknown";
+        const apiVersion = pickApiVersion(result, spec, status) || inferApiVersion(kind);
         const nameRef = result.name || spec.name || metadata.name || "unknown";
         const parsed = parseNamespacedName(nameRef, result.namespace || spec.namespace || metadata.namespace || namespace);
         const eventsTable = await fetchEvents(core, parsed.namespace, kind, parsed.name);
+        const definition = await fetchDefinition(objectApi, apiVersion, kind, parsed.namespace, parsed.name);
         return {
           id: `${metadata.name || "result"}-${idx}`,
           title: kind,
@@ -159,7 +244,8 @@ export async function listK8sGPTIssues(): Promise<K8sGPTIssue[]> {
               (Array.isArray(spec.error) ? spec.error[0]?.text : spec.error?.text) ||
               (Array.isArray(status.error) ? status.error[0]?.text : status.error?.text) ||
               "",
-            eventsTable
+            eventsTable,
+            definition
           }
         };
       });
@@ -168,9 +254,11 @@ export async function listK8sGPTIssues(): Promise<K8sGPTIssue[]> {
     return [
       (async () => {
         const kind = spec.kind || status.kind || "Unknown";
+        const apiVersion = pickApiVersion({}, spec, status) || inferApiVersion(kind);
         const nameRef = spec.name || metadata.name || "unknown";
         const parsed = parseNamespacedName(nameRef, spec.namespace || metadata.namespace || namespace);
         const eventsTable = await fetchEvents(core, parsed.namespace, kind, parsed.name);
+        const definition = await fetchDefinition(objectApi, apiVersion, kind, parsed.namespace, parsed.name);
         return {
           id: metadata.name || "result",
           title: kind,
@@ -186,7 +274,8 @@ export async function listK8sGPTIssues(): Promise<K8sGPTIssue[]> {
               (Array.isArray(spec.error) ? spec.error[0]?.text : spec.error?.text) ||
               (Array.isArray(status.error) ? status.error[0]?.text : status.error?.text) ||
               "",
-            eventsTable
+            eventsTable,
+            definition
           }
         };
       })()

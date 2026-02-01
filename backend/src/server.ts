@@ -7,6 +7,7 @@ import authRouter from "./routes/auth.js";
 import issuesRouter from "./routes/issues.js";
 import resourcesRouter from "./routes/resources.js";
 import plansRouter from "./routes/plans.js";
+import adminRouter from "./routes/admin.js";
 
 const app = express();
 const port = process.env.PORT ? Number(process.env.PORT) : 3001;
@@ -28,6 +29,7 @@ app.use("/api", authMiddleware);
 app.use("/api/issues", issuesRouter);
 app.use("/api/resources", resourcesRouter);
 app.use("/api/plans", plansRouter);
+app.use("/api/admin", adminRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

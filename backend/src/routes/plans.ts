@@ -2,7 +2,7 @@ import { Router } from "express";
 
 const router = Router();
 
-const remediationPlan = {
+const shortTermPlan = {
   summary: "Pod is crash-looping due to invalid config.",
   assumptions: ["ConfigMap v2 was deployed recently."],
   riskLevel: "medium",
@@ -27,7 +27,7 @@ const longTermPlan = {
   riskLevel: "low"
 };
 
-router.post("/remediation", (req, res) => {
+router.post("/short-term", (req, res) => {
   const { issueId } = req.body || {};
   if (!issueId) {
     return res.status(400).json({
@@ -37,7 +37,7 @@ router.post("/remediation", (req, res) => {
     });
   }
 
-  return res.json(remediationPlan);
+  return res.json(shortTermPlan);
 });
 
 router.post("/long-term", (req, res) => {

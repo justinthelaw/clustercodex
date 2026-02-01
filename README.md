@@ -13,20 +13,20 @@ Kubernetes troubleshooting is painful. When pods crash, deployments fail, or res
 
 ## The Solution
 
-Cluster Codex combines **automated issue detection** (via K8sGPT) with **LLM-powered remediation plans** to give developers actionable guidance in seconds.
+Cluster Codex combines **automated issue detection** (via K8sGPT) with **LLM-powered short-term plans** to give developers actionable guidance in seconds.
 
 ### Core Workflow
 
 1. **See** — Kubernetes issues detected automatically by K8sGPT
 2. **Understand** — AI-generated analysis explains what's wrong and why
-3. **Act** — Step-by-step remediation plans with `kubectl` commands
+3. **Act** — Step-by-step short-term plans with `kubectl` commands
 
 ## How It Works
 
 ```mermaid
 graph BT
     Cluster["Kubernetes<br/>Cluster"]
-    
+
     subgraph ClusterCodex["Cluster Codex"]
         K8sGPT["K8sGPT<br/>Operator"]
         K8sClient["Kubernetes<br/>Client"]
@@ -35,16 +35,16 @@ graph BT
         Landing["Landing<br/>(Issues)"]
         Resources["Resource<br/>Tabs"]
         Admin["Admin<br/>Portal"]
-        
+
         K8sGPT --> API
         K8sClient --> API
         LLM --> API
-        
+
         API --> Landing
         API --> Resources
         API --> Admin
     end
-    
+
     Cluster --> K8sGPT
     Cluster --> K8sClient
     Cluster --> LLM
@@ -52,7 +52,7 @@ graph BT
 
 1. **K8sGPT Operator** runs in-cluster, detecting issues via Result CRDs
 2. **Backend API** fetches Result CRDs, enriching with resource/event context
-3. **LLM (Codex)** generates structured remediation and long-term plans
+3. **LLM (Codex)** generates structured short-term and long-term plans
 4. **Frontend** displays issues and plans with user access filtering
 
 ## Features
@@ -63,9 +63,9 @@ View all detected Kubernetes issues:
 
 - Issue title, severity, affected resource, namespace
 - K8sGPT-provided context and analysis
-- One-click buttons to generate remediation or long-term plans
+- One-click buttons to generate short-term or long-term plans
 
-### Remediation Plans
+### Short-term Plans
 
 For immediate fixes that get things working **now**:
 
@@ -109,15 +109,14 @@ Central access control management:
 | [K8sGPT Operator](https://docs.k8sgpt.ai/getting-started/in-cluster-operator/) | In-cluster issue detection     |
 | [K3d](https://k3d.io/stable)                                                   | Local Kubernetes cluster       |
 | [OpenAI SDK](https://github.com/openai/openai-node)                            | LLM client (mock mode for MVP) |
+| [@kubernetes/client-node](https://github.com/kubernetes-client/javascript)     | Direct K8s API access          |
 
 ### Post-MVP
 
-| Technology                                                                 | Purpose                   |
-| -------------------------------------------------------------------------- | ------------------------- |
-| [Prisma](https://www.prisma.io/)                                           | Database ORM + migrations |
-| [@kubernetes/client-node](https://github.com/kubernetes-client/javascript) | Direct K8s API access     |
-| [llama.cpp](https://github.com/ggerganov/llama.cpp)                        | Local LLM (zero API cost) |
-| [Playwright](https://playwright.dev)                                       | E2E testing               |
+| Technology                                          | Purpose                   |
+| --------------------------------------------------- | ------------------------- |
+| [llama.cpp](https://github.com/ggerganov/llama.cpp) | Local LLM (zero API cost) |
+| [Playwright](https://playwright.dev)                | E2E testing               |
 
 ## Quick Start
 
@@ -125,9 +124,9 @@ Central access control management:
 # Prerequisites: Node.js 20+, Docker, K3d, Helm, kubectl
 
 # Clone and setup
-git clone <repo-url>
+git clone https://github.com/justinthelaw/clustercodex.git
 cd clustercodex
-npm run setup
+npm run install
 
 # Start development (separate terminals)
 npm run infra:start     # K3d cluster
@@ -151,22 +150,11 @@ clustercodex/
 └── README.md          # This file
 ```
 
-## Roadmap
+## Future Roadmap
 
-### MVP (Current)
-
-- [x] Product vision and implementation plan
-- [ ] Project scaffolding and infrastructure setup
-- [ ] Issue detection and display
-- [ ] Remediation plan generation (mock LLM)
-- [ ] Resource visibility tabs
-- [ ] Basic auth and access policies
-
-### Future
-
-- **Real LLM Integration**: Replace mocks with local llama.cpp or OpenAI API
-- **Agentic Execution**: Apply remediation plans with user approval
+- **Agentic Execution**: Apply short-term plans using coding agents, with user approval
 - **Ticket Integration**: Create upstream issues for long-term fixes
-- **Multi-cluster Support**: Manage multiple clusters from one interface
 - **Storage and Auth**: True auth and data persistence using a durable solution (e.g., Supabase)
 - **Enhanced RBAC**: Per-action permissions beyond namespace/kind filtering
+- **More Resource Support**: View and manage all custom and standard Kubernetes resources
+- **Multi-cluster Support**: Manage multiple clusters from one interface
