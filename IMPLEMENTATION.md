@@ -65,7 +65,6 @@ VITE_BACKEND_URL=http://localhost:3001
 - `dev:backend` → starts Express server with tsx
 - `dev:frontend` → starts Vite dev server
 - `test:e2e` → runs Playwright tests
-- `llm:start` → starts llama-server with Gemma 3 12B
 
 ## Bash Scripts
 
@@ -88,7 +87,7 @@ Scripts in `scripts/` handle complex orchestration:
 
 **AccessPolicy** (for `user@clustercodex.local`):
 
-- namespaceAllowList: `["broken", "my-app"]`
+- namespaceAllowList: `["broken", "podinfo"]`
 - kindAllowList: `["Pod", "Deployment", "Event"]`
 
 **AccessPolicy** (for `admin@clustercodex.local`):
@@ -160,25 +159,22 @@ Write allow lists for the single PoC user.
 
 ## Codex SDK Integration
 
-Use the OpenAI SDK (`openai` npm package) configured to point at a local llama-server for zero API cost during development.
+Use the Codex SDK for plan generation.
 
 **File**: `backend/src/services/codex-service.ts`
 
 **Approach**:
 
-- Initialize OpenAI client with `CODEX_BASE_URL` (default: `http://localhost:8080/v1`)
-- Use `chat.completions.create()` with `response_format: { type: 'json_object' }`
+- Initialize the Codex SDK client with standard OpenAI credentials
 - Parse JSON response and validate against output schema
-- Default model: `gemma-3-12b-it` (local) or `gpt-5.2-codex` (OpenAI API)
-
-**Local LLM**: Run `npm run llm:start` to start llama-server with Gemma 3 12B (~8GB VRAM required).
+- Default model: `gpt-5.2-codex` (OpenAI API)
 
 **Mock Fallback** (`backend/src/services/codex-mock.ts`):
 
 - Hardcode 2-3 sample responses for common issue types (CrashLoopBackOff, ImagePullBackOff, OOMKilled).
 - Toggle via `CODEX_MOCK_MODE=true` for offline development or no-GPU machines.
 
-**Switching to OpenAI API**: Set `CODEX_BASE_URL=https://api.openai.com/v1`, `CODEX_API_KEY=sk-...`, `CODEX_MODEL=gpt-5.2-codex` in `.env`.
+**OpenAI API**: Set `OPENAI_API_KEY=sk-...` in `.env`.
 
 ## Codex Prompt + Output Schema
 
@@ -423,16 +419,15 @@ The MVP is scoped for **~4 hours** of focused development. Each phase has clear 
 - [x] `/api/issues` returns real issues detected by K8sGPT
 - [x] Frontend displays real cluster issues
 
-### Phase 4: Codex SDK with Local LLM
+### Phase 4: Codex SDK Plan Generation
 
-**Goal**: Implement Codex SDK for generating fixes, using the Local LLM provider (`llama-server` via `llama.cpp`).
+**Goal**: Implement Codex SDK for generating fixes.
 
 **Deliverables**:
 
 1. **Codex service integration**:
-   - `backend/src/services/codex-service.ts` with OpenAI SDK client
-   - Supports `CODEX_BASE_URL`, `CODEX_API_KEY`, `CODEX_MODEL`
-   - Uses `response_format: { type: "json_object" }`
+   - `backend/src/services/codex-service.ts` with Codex SDK client
+   - Uses standard OpenAI credentials
 
 2. **Prompt assembly + redaction**:
    - Builds prompt from issue + user context + access policy
@@ -449,11 +444,11 @@ The MVP is scoped for **~4 hours** of focused development. Each phase has clear 
 
 **Exit Criteria**:
 
-- [ ] Local llama-server reachable at `CODEX_BASE_URL` and responds to test prompt
-- [ ] `POST /api/plans/short-term` returns schema-valid JSON from LLM or mock
-- [ ] `POST /api/plans/long-term` returns schema-valid JSON from LLM or mock
-- [ ] `CODEX_MOCK_MODE=true` produces deterministic responses
-- [ ] Redaction tests cover at least one sensitive field
+- [x] Codex SDK reachable and responds to test prompt
+- [x] `POST /api/plans/short-term` returns schema-valid JSON from LLM or mock
+- [x] `POST /api/plans/long-term` returns schema-valid JSON from LLM or mock
+- [x] `CODEX_MOCK_MODE=true` produces deterministic responses
+- [x] `CODEX_MOCK_MODE=false` and `OPENAI_API_KEY=sk-*` produces Codex generated responses
 
 ### Phase 5: Tests
 

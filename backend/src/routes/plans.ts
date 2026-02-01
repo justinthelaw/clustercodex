@@ -1,56 +1,111 @@
 import { Router } from "express";
+import { listK8sGPTIssues } from "../services/k8sgpt-client.js";
+import { getPolicyForUser, filterIssuesByPolicy } from "../services/access-policy.js";
+import { mockIssues } from "../services/mock-issues.js";
+import { isMockMode, generateLongTermPlan, generateShortTermPlan } from "../services/codex-service.js";
+import { getMockLongTermPlan, getMockShortTermPlan } from "../services/codex-mock.js";
+import type { CodexPlanIssue } from "../services/codex-types.js";
 
 const router = Router();
 
-const shortTermPlan = {
-  summary: "Pod is crash-looping due to invalid config.",
-  assumptions: ["ConfigMap v2 was deployed recently."],
-  riskLevel: "medium",
-  steps: [
-    {
-      stepId: "step-1",
-      description: "Check pod logs for stack trace and config errors.",
-      kubectl: "kubectl logs api-7f9d5 -n default --previous",
-      validation: "Log output shows the crash reason.",
-      rollback: null,
-      impact: "none"
-    }
-  ],
-  fallback: "Rollback to the previous config if the issue is confirmed."
-};
-
-const longTermPlan = {
-  summary: "Improve config validation and rollback safety.",
-  rootCauseHypotheses: ["Config change introduced invalid env var."],
-  evidenceToGather: ["Compare config versions", "Check deployment history"],
-  recommendations: ["Add config validation CI step", "Implement canary deploys"],
-  riskLevel: "low"
-};
-
-router.post("/short-term", (req, res) => {
-  const { issueId } = req.body || {};
-  if (!issueId) {
-    return res.status(400).json({
-      error: "issueId is required",
-      code: "VALIDATION_ERROR",
-      details: { field: "issueId" }
-    });
+async function loadIssuesForUser(user: any): Promise<CodexPlanIssue[]> {
+  try {
+    const issues = await listK8sGPTIssues();
+    return filterIssuesByPolicy(issues, user);
+  } catch (err) {
+    console.warn("Failed to load K8sGPT issues for plans, using mock data", err);
+    return filterIssuesByPolicy(mockIssues, user);
   }
+}
 
-  return res.json(shortTermPlan);
+function findIssueById(issues: CodexPlanIssue[], issueId: string): CodexPlanIssue | null {
+  return issues.find((issue) => issue.id === issueId) || null;
+}
+
+router.post("/short-term", async (req, res, next) => {
+  try {
+    const { issueId, userContext } = req.body || {};
+    if (!issueId) {
+      return res.status(400).json({
+        error: "issueId is required",
+        code: "VALIDATION_ERROR",
+        details: { field: "issueId" }
+      });
+    }
+
+    const issues = await loadIssuesForUser(req.user);
+    const issue = findIssueById(issues, String(issueId));
+    if (!issue) {
+      return res.status(404).json({
+        error: "Issue not found",
+        code: "NOT_FOUND",
+        details: {}
+      });
+    }
+
+    const policy = getPolicyForUser(req.user) || { namespaceAllowList: [], kindAllowList: [] };
+    const fallback = getMockShortTermPlan(issue);
+
+    if (isMockMode()) {
+      return res.json(fallback);
+    }
+
+    const plan = await generateShortTermPlan(
+      {
+        issue,
+        userContext: String(userContext || ""),
+        allowList: policy
+      },
+      fallback
+    );
+
+    return res.json(plan);
+  } catch (err) {
+    return next(err);
+  }
 });
 
-router.post("/long-term", (req, res) => {
-  const { issueId } = req.body || {};
-  if (!issueId) {
-    return res.status(400).json({
-      error: "issueId is required",
-      code: "VALIDATION_ERROR",
-      details: { field: "issueId" }
-    });
-  }
+router.post("/long-term", async (req, res, next) => {
+  try {
+    const { issueId, userContext } = req.body || {};
+    if (!issueId) {
+      return res.status(400).json({
+        error: "issueId is required",
+        code: "VALIDATION_ERROR",
+        details: { field: "issueId" }
+      });
+    }
 
-  return res.json(longTermPlan);
+    const issues = await loadIssuesForUser(req.user);
+    const issue = findIssueById(issues, String(issueId));
+    if (!issue) {
+      return res.status(404).json({
+        error: "Issue not found",
+        code: "NOT_FOUND",
+        details: {}
+      });
+    }
+
+    const policy = getPolicyForUser(req.user) || { namespaceAllowList: [], kindAllowList: [] };
+    const fallback = getMockLongTermPlan(issue);
+
+    if (isMockMode()) {
+      return res.json(fallback);
+    }
+
+    const plan = await generateLongTermPlan(
+      {
+        issue,
+        userContext: String(userContext || ""),
+        allowList: policy
+      },
+      fallback
+    );
+
+    return res.json(plan);
+  } catch (err) {
+    return next(err);
+  }
 });
 
 export default router;

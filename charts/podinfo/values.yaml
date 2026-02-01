@@ -1,0 +1,4 @@
+image:
+  # Bad image reference structure triggers InvalidImageName
+  repository: docker.io/stefanprodan//podinfo
+  tag: latest

@@ -1,6 +1,0 @@
-name: broken-image
-namespace: broken
-image:
-  repository: doesnotexist.invalid/fake-image
-  tag: latest
-resources: {}

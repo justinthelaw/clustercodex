@@ -3,10 +3,6 @@ set -euo pipefail
 
 CLUSTER_NAME=${CLUSTER_NAME:-clustercodex}
 KUBE_CONTEXT="k3d-${CLUSTER_NAME}"
-K8SGPT_NAMESPACE=${K8SGPT_NAMESPACE:-k8sgpt-operator-system}
-K8SGPT_RELEASE=${K8SGPT_RELEASE:-k8sgpt-operator}
-BROKEN_RELEASE=${BROKEN_RELEASE:-broken-pod}
-BROKEN_NAMESPACE=${BROKEN_NAMESPACE:-broken}
 
 command -v k3d >/dev/null 2>&1 || { echo "k3d is required"; exit 1; }
 command -v kubectl >/dev/null 2>&1 || { echo "kubectl is required"; exit 1; }
@@ -24,17 +20,22 @@ kubectl config use-context "${KUBE_CONTEXT}" >/dev/null
 echo "Installing K8sGPT Operator"
 helm repo add k8sgpt https://charts.k8sgpt.ai/ >/dev/null
 helm repo update >/dev/null
-helm upgrade --install "${K8SGPT_RELEASE}" k8sgpt/k8sgpt-operator \
-  --namespace "${K8SGPT_NAMESPACE}" \
+helm upgrade --install k8sgpt-operator k8sgpt/k8sgpt-operator \
+  --namespace k8sgpt-operator-system \
   --create-namespace
 
 echo "Installing K8sGPT configuration"
-kubectl apply -f charts/k8sgpt/k8sgpt-configuration.yaml
+kubectl apply -f charts/k8sgpt/configuration.yaml
 
-echo "Deploying broken pod chart"
-helm upgrade --install "${BROKEN_RELEASE}" ./charts/broken-pod \
-  --namespace "${BROKEN_NAMESPACE}" \
-  --create-namespace
+echo "Deploying podinfo chart with bad values"
+helm upgrade --install podinfo oci://ghcr.io/stefanprodan/charts/podinfo \
+  --values "./charts/podinfo/values.yaml"
+
+echo "Deploying deployment wih fake image reference"
+kubectl apply -f ./charts/broken-deployment/deployment.yaml
+
+echo "Deploying GPU pod into a non-GPU cluster"
+kubectl apply -f ./charts/gpu-test/deployment.yaml
 
 echo "Checking K8sGPT Result CRDs"
 kubectl get results -A || true

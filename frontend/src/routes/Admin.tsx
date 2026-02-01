@@ -24,7 +24,7 @@ const allKinds = [
 ];
 
 export default function Admin() {
-  const [namespaceAllowList, setNamespaceAllowList] = useState("broken");
+  const [namespaceAllowList, setNamespaceAllowList] = useState("broken,podinfo");
   const [kindAllowList, setKindAllowList] = useState("Pod,Deployment,Event");
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");

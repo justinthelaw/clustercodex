@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: broken
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: broken-deployment
+  namespace: broken
+  labels:
+    app: broken-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: broken-deployment
+  template:
+    metadata:
+      labels:
+        app: broken-deployment
+    spec:
+      containers:
+        - name: broken-deployment
+          # Non-existent image reference triggers ImagePullBackOff
+          image: doesnotexist.invalid/fake-image:latest

@@ -115,13 +115,12 @@ Central access control management:
 
 | Technology                                          | Purpose                   |
 | --------------------------------------------------- | ------------------------- |
-| [llama.cpp](https://github.com/ggerganov/llama.cpp) | Local LLM (zero API cost) |
 | [Playwright](https://playwright.dev)                | E2E testing               |
 
 ## Quick Start
 
 ```bash
-# Prerequisites: Node.js 20+, Docker, K3d, Helm, kubectl
+# Prerequisites: Node.js 20+, Docker Engine, K3d, Helm, kubectl
 
 # Clone and setup
 git clone https://github.com/justinthelaw/clustercodex.git

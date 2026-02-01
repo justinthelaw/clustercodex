@@ -11,7 +11,7 @@ type UserInfo = {
 
 const policiesByUser: Record<string, AccessPolicy> = {
   "user-basic": {
-    namespaceAllowList: ["broken","my-app"],
+    namespaceAllowList: ["broken", "podinfo"],
     kindAllowList: ["Pod", "Deployment", "Event"],
   },
 };

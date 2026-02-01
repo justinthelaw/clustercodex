@@ -130,7 +130,7 @@ main {
 }
 
 .button:hover {
-  transform: translateY(-1px);
+  background: #7d7d7d;
 }
 
 .button:disabled {
@@ -152,14 +152,13 @@ main {
 }
 
 .button.tertiary {
-  background: #1e698a;
-  border: 1px solid #115e59;
+  background: #1e448a;
   color: #f8fafc;
   box-shadow: none;
 }
 
 .button.tertiary:hover {
-  background: #0d9488;
+  background: #0d6594;
 }
 
 .button.danger {

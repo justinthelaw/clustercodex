@@ -324,8 +324,8 @@ export default function Issues() {
             >
               <h2 style={{ margin: 0 }}>
                 {planType === "short-term"
-                  ? "Short-Term Plan"
-                  : "Long-Term Plan"}
+                  ? "Quick Fix"
+                  : "Long-Term Fix"}
               </h2>
               <button
                 className="button secondary"
@@ -413,7 +413,6 @@ export default function Issues() {
                   >
                     {planLoading ? "Generating..." : "Generate plan"}
                   </button>
-                  {planLoading && <div>Generating plan...</div>}
                 </div>
               )}
               {planText && (
@@ -458,7 +457,6 @@ export default function Issues() {
                     >
                       {planLoading ? "Regenerating..." : "Regenerate plan"}
                     </button>
-                    {planLoading && <div>Regenerating plan...</div>}
                   </div>
                 </div>
               )}
