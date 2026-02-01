@@ -36,4 +36,27 @@ helm upgrade --install "${BROKEN_RELEASE}" ./charts/broken-pod \
   --namespace "${BROKEN_NAMESPACE}" \
   --create-namespace
 
+echo "Checking K8sGPT Result CRDs"
+kubectl get results -A || true
+
+echo "Waiting up to 60s for Result CRDs in namespace: ${K8SGPT_NAMESPACE}"
+FOUND_RESULTS=false
+for i in {1..12}; do
+  if kubectl get results -n "${K8SGPT_NAMESPACE}" >/dev/null 2>&1; then
+    if kubectl get results -n "${K8SGPT_NAMESPACE}" -o name | grep -q .; then
+      FOUND_RESULTS=true
+      break
+    fi
+  fi
+  sleep 5
+done
+
+if [ "${FOUND_RESULTS}" = true ]; then
+  echo "Result CRDs found:"
+  kubectl get results -n "${K8SGPT_NAMESPACE}"
+else
+  echo "No Result CRDs found in ${K8SGPT_NAMESPACE} after 60s. Please check the cluster and K8sGPT deployment for issues."
+  exit 1
+fi
+
 echo "Cluster Codex testing and dev infrastructure ready."

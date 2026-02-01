@@ -10,6 +10,12 @@ type Issue = {
   namespace: string;
   name: string;
   detectedAt: string;
+  context?: {
+    kind: string;
+    name: string;
+    errorText: string;
+    eventsTable?: string;
+  };
 };
 
 export default function Issues() {
@@ -22,6 +28,7 @@ export default function Issues() {
   const [planLoading, setPlanLoading] = useState(false);
   const [planError, setPlanError] = useState("");
   const [planResult, setPlanResult] = useState<any | null>(null);
+  const [contextSnapshot, setContextSnapshot] = useState("");
 
   useEffect(() => {
     let mounted = true;
@@ -47,6 +54,7 @@ export default function Issues() {
     setSelectedIssue(null);
     setPlanType(null);
     setUserContext("");
+    setContextSnapshot("");
     setPlanLoading(false);
     setPlanError("");
     setPlanResult(null);
@@ -57,6 +65,19 @@ export default function Issues() {
     setPlanType(type);
     setPlanResult(null);
     setPlanError("");
+    if (issue.context) {
+      const { kind, name, errorText, eventsTable } = issue.context;
+      const blocks = [
+        `Kind: ${kind}`,
+        `Name: ${name}`,
+        `Error: ${errorText || "N/A"}`,
+        "Events:",
+        eventsTable || "No events found."
+      ];
+      setContextSnapshot(blocks.join("\n"));
+    } else {
+      setContextSnapshot("");
+    }
   };
 
   const submitPlan = async () => {
@@ -64,11 +85,15 @@ export default function Issues() {
     setPlanLoading(true);
     setPlanError("");
 
+    const mergedContext = [contextSnapshot.trim(), userContext.trim()]
+      .filter(Boolean)
+      .join("\\n\\n");
+
     try {
       const endpoint = planType === "remediation" ? "/api/plans/remediation" : "/api/plans/long-term";
       const response = await api.post(endpoint, {
         issueId: selectedIssue.id,
-        userContext
+        userContext: mergedContext
       });
       setPlanResult(response.data);
     } catch (err: any) {
@@ -181,10 +206,10 @@ export default function Issues() {
                 <td>
                   <div style={{ display: "flex", gap: "8px" }}>
                     <button className="button" onClick={() => openModal(issue, "remediation")}>
-                      Remediation
+                      Quick Remedation
                     </button>
                     <button className="button secondary" onClick={() => openModal(issue, "long-term")}>
-                      Long-term
+                      Long-Term Plan
                     </button>
                   </div>
                 </td>
@@ -206,33 +231,57 @@ export default function Issues() {
             padding: "24px"
           }}
         >
-          <div className="card" style={{ maxWidth: "720px", width: "100%" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3>{planType === "remediation" ? "Remediation Plan" : "Long-term Plan"}</h3>
-              <button className="button secondary" onClick={closeModal}>
-                Close
-              </button>
-            </div>
-            <p>
-              <strong>{selectedIssue.title}</strong> · {selectedIssue.namespace}/{selectedIssue.name}
-            </p>
-            <div className="form-field">
-              <label htmlFor="context">Optional context</label>
-              <input
-                id="context"
-                type="text"
-                value={userContext}
-                onChange={(event) => setUserContext(event.target.value)}
-                placeholder="We just deployed v2."
-              />
-            </div>
-            {planError && <ErrorBanner message={planError} />}
-            <button className="button" onClick={submitPlan} disabled={planLoading}>
-              {planLoading ? "Generating..." : "Generate plan"}
-            </button>
-            <div style={{ marginTop: "16px" }}>
-              {planLoading && <div>Generating plan...</div>}
-              {renderedPlan}
+          <div
+            className="card"
+            style={{ maxWidth: "820px", width: "92%", maxHeight: "85vh", overflow: "hidden" }}
+          >
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px", padding: "4px 2px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px" }}>
+                <h3 style={{ margin: 0 }}>{planType === "remediation" ? "Remediation Plan" : "Long-term Plan"}</h3>
+                <button
+                  className="button secondary"
+                  onClick={closeModal}
+                  aria-label="Close"
+                >
+                  Close
+                </button>
+              </div>
+              <div className="form-field" style={{ marginBottom: 0 }}>
+                <label htmlFor="context">Cluster issue context</label>
+                <pre
+                  id="context"
+                  style={{
+                    background: "#0b0b0b",
+                    color: "#e5e5e5",
+                    padding: "12px 14px",
+                    borderRadius: "10px",
+                    border: "1px solid #202020",
+                    whiteSpace: "pre-wrap",
+                    margin: 0
+                  }}
+                >
+                  {contextSnapshot || "No context available."}
+                </pre>
+              </div>
+              <div className="form-field" style={{ marginBottom: 0 }}>
+                <label htmlFor="userContext">Additional context</label>
+                <input
+                  id="userContext"
+                  type="text"
+                  value={userContext}
+                  onChange={(event) => setUserContext(event.target.value)}
+                />
+              </div>
+              {planError && <ErrorBanner message={planError} />}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", gap: "12px" }}>
+                <button className="button" onClick={submitPlan} disabled={planLoading}>
+                  {planLoading ? "Generating..." : "Generate plan"}
+                </button>
+                {planLoading && <div>Generating plan...</div>}
+              </div>
+              {renderedPlan && (
+                <div style={{ paddingTop: "8px", borderTop: "1px solid #202020" }}>{renderedPlan}</div>
+              )}
             </div>
           </div>
         </div>

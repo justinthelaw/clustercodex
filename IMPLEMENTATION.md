@@ -611,10 +611,10 @@ The MVP is scoped for **~4 hours** of focused development. Each phase has clear 
 
 **Exit Criteria**:
 
-- [ ] K3d cluster running with 3 broken pods
-- [ ] K8sGPT Operator deployed and creating Result CRDs
-- [ ] `/api/issues` returns real issues detected by K8sGPT
-- [ ] Frontend displays real cluster issues
+- [x] K3d cluster running with 3 broken pods
+- [x] K8sGPT Operator deployed and creating Result CRDs
+- [x] `/api/issues` returns real issues detected by K8sGPT
+- [x] Frontend displays real cluster issues
 
 ### Phase 4: Polish + Demo Prep (~30 minutes)
 

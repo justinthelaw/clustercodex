@@ -17,17 +17,27 @@ export default function Header() {
 
   return (
     <header>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <div
+          style={{
+            fontSize: "20px"
+          }}
+        >
           <strong>Cluster Codex</strong>
         </div>
         <nav>
           <NavLink to="/" end>
-            Issues
+            Current Issues
           </NavLink>
-          <NavLink to="/resources">Resources</NavLink>
+          <NavLink to="/resources">Resource Explorer</NavLink>
           {auth?.user.role === "admin" && (
-            <NavLink to="/admin">Admin</NavLink>
+            <NavLink to="/admin">Admin Panel</NavLink>
           )}
         </nav>
         <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>

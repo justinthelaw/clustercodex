@@ -43,7 +43,7 @@ header {
 
 header nav {
   display: flex;
-  gap: 12px;
+  gap: 0;
 }
 
 header a {
@@ -51,6 +51,13 @@ header a {
   text-decoration: none;
   font-weight: 600;
   transition: color 0.2s ease;
+  padding: 4px 14px;
+}
+
+header a + a {
+  border-left: 1px solid var(--border);
+  margin-left: 6px;
+  padding-left: 18px;
 }
 
 header a:hover {
@@ -64,7 +71,7 @@ header a.active {
 main {
   flex: 1;
   padding: 28px;
-  max-width: 1100px;
+  max-width: 80vw;
   width: 100%;
   margin: 0 auto;
 }

@@ -87,7 +87,6 @@ Read-only view of cluster resources:
 
 - **Pods**: Status, restarts, age, node placement
 - **Deployments**: Replicas, strategy, conditions
-- **Nodes**: Capacity, allocatable, conditions
 - **Events**: Recent cluster activity
 
 ### Admin Portal

@@ -81,7 +81,7 @@ export default function Resources() {
 
   return (
     <div className="card">
-      <h2>Resources</h2>
+      <h2>Resource Explorer</h2>
       <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
         {tabs.map((tab) => (
           <button
