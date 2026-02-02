@@ -172,17 +172,6 @@ main {
   background: #dc2626;
 }
 
-.button.success {
-  background: #16a34a;
-  border: 1px solid #166534;
-  color: #ecfdf3;
-  box-shadow: none;
-}
-
-.button.success:hover {
-  background: #22c55e;
-}
-
 .form-field {
   display: flex;
   flex-direction: column;

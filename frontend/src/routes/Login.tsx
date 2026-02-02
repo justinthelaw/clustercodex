@@ -28,7 +28,7 @@ export default function Login() {
     try {
       const response = await api.post<LoginResponse>("/api/auth/login", {
         email,
-        password
+        password,
       });
       setAuth({ token: response.data.accessToken, user: response.data.user });
       setLoading(false);
@@ -40,34 +40,38 @@ export default function Login() {
   };
 
   return (
-    <div className="card" style={{ maxWidth: "420px", margin: "40px auto" }}>
-      <h2>Sign in</h2>
-      <ErrorBanner message={error} />
-      <form onSubmit={handleSubmit}>
-        <div className="form-field">
-          <label htmlFor="email">Email</label>
-          <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            required
-          />
-        </div>
-        <div className="form-field">
-          <label htmlFor="password">Password</label>
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            required
-          />
-        </div>
-        <button className="button" type="submit" disabled={loading}>
-          {loading ? "Signing in..." : "Sign in"}
-        </button>
-      </form>
+    <div>
+      <h1 style={{ textAlign: "center", marginTop: "20px" }}>Cluster Codex</h1>
+
+      <div className="card" style={{ maxWidth: "420px", margin: "40px auto" }}>
+        <h3>Sign in</h3>
+        <ErrorBanner message={error} />
+        <form onSubmit={handleSubmit}>
+          <div className="form-field">
+            <label htmlFor="email">Email</label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              required
+            />
+          </div>
+          <div className="form-field">
+            <label htmlFor="password">Password</label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              required
+            />
+          </div>
+          <button className="button" type="submit" disabled={loading}>
+            {loading ? "Signing in..." : "Sign in"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

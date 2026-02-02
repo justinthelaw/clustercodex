@@ -291,7 +291,7 @@ export default function Issues() {
                         </>
                       ) : (
                         <button
-                          className="button success"
+                          className="button secondary"
                           onClick={() => handleRestore(issue.id)}
                         >
                           Restore
