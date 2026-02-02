@@ -8,7 +8,7 @@ This document details the implementation plan for Cluster Codex MVP—a 4-hour p
 
 - Local JWT authentication (in-memory users)
 - Issues table with K8sGPT-detected problems
-- LLM responses for short-term and long-term plans
+- LLM responses for the Cluster Codex plan
 - Read-only resource tabs (e.g., Pods, Deployments, Nodes, Events)
 - Access policy enforcement
 - Automated testing (Playwright, unit tests)
@@ -19,7 +19,7 @@ This document details the implementation plan for Cluster Codex MVP—a 4-hour p
 
 - Landing page: issues table + generate plan modals.
 - Resource tabs: Pods, Deployments, Nodes, Events (read-only).
-- Plan view: renders structured JSON (short-term + long-term).
+- Plan view: renders structured JSON for the Cluster Codex plan.
 - Admin page: user access policies (simple, single user).
 - All state managed via API calls to Express backend.
 
@@ -27,7 +27,7 @@ This document details the implementation plan for Cluster Codex MVP—a 4-hour p
 
 - `/api/issues` → reads K8sGPT Result CRDs from cluster → maps to Issue records.
 - `/api/resources` → reads Kubernetes via `@kubernetes/client-node`.
-- `/api/plans/short-term` + `/api/plans/long-term` → builds prompt + redacts + calls Codex (mock).
+- `/api/plans/codex` → builds prompt + redacts + calls Codex (mock).
 - `/api/admin/access-policy` → in-memory (Phase 1)
 - Handles all business logic, authorization, and external service integration.
 - Validates local JWT tokens for authentication.
@@ -138,7 +138,7 @@ Response (array):
 
 Returns list of resources from the cluster, filtered by access policy.
 
-### `POST /api/plans/short-term`
+### `POST /api/plans/codex`
 
 Input:
 
@@ -149,9 +149,7 @@ Input:
 }
 ```
 
-### `POST /api/plans/long-term`
-
-Same input; different prompt + response schema.
+Returns the Cluster Codex plan.
 
 ### `POST /api/admin/access-policy`
 
@@ -180,36 +178,28 @@ Use the Codex SDK for plan generation.
 
 **Decision**: Use strict JSON output and schema validation. No free text.
 
-### Short-term Output Schema
+### Cluster Codex Output Schema
 
 ```json
 {
-  "summary": "string",
-  "assumptions": ["string"],
-  "riskLevel": "low|medium|high",
-  "steps": [
-    {
-      "stepId": "string",
-      "description": "string",
-      "kubectl": "string|null",
-      "validation": "string",
-      "rollback": "string|null",
-      "impact": "none|low|medium|high"
-    }
-  ],
-  "fallback": "string"
-}
-```
-
-### Long-term Output Schema
-
-```json
-{
-  "summary": "string",
+  "quickFix": {
+    "summary": "string",
+    "assumptions": ["string"],
+    "steps": [
+      {
+        "stepId": "string",
+        "description": "string",
+        "kubectl": "string|null",
+        "validation": "string",
+        "rollback": "string|null",
+        "impact": "none|low|medium|high"
+      }
+    ],
+    "fallback": "string"
+  },
   "rootCauseHypotheses": ["string"],
   "evidenceToGather": ["string"],
-  "recommendations": ["string"],
-  "riskLevel": "low|medium|high"
+  "recommendations": ["string"]
 }
 ```
 
@@ -237,7 +227,7 @@ Unit tests must assert redaction.
 
 - Collect issue + user context.
 - Show loading state with spinner.
-- Render structured plan with steps + risk.
+- Render structured plan with steps.
 - “Save plan” writes to in-memory storage (Phase 1).
 
 ### Resource Tabs
@@ -257,7 +247,7 @@ Unit tests must assert redaction.
 
 ## Testing Plan
 
-1. Playwright journeys: load landing, see expected resources, generate short-term plan.
+1. Playwright journeys: load landing, see expected resources, generate Codex plan.
 2. Schema validation tests for Codex output.
 3. Redaction unit tests.
 4. MCP contract fixture tests.
@@ -323,8 +313,7 @@ The MVP is scoped for **~4 hours** of focused development. Each phase has clear 
 2. **Mock API endpoints**:
    - `GET /api/issues` — Returns hardcoded array of 3 issues (CrashLoopBackOff, ImagePullBackOff, OOMKilled)
    - `GET /api/resources?kind=Pod` — Returns hardcoded array of pods
-   - `POST /api/plans/short-term` — Returns hardcoded short-term plan JSON
-   - `POST /api/plans/long-term` — Returns hardcoded long-term plan JSON
+   - `POST /api/plans/codex` — Returns combined plan JSON
 
 3. **Error handling**:
    - Express error middleware with consistent JSON error format
@@ -339,7 +328,7 @@ The MVP is scoped for **~4 hours** of focused development. Each phase has clear 
 - [x] Unauthenticated requests to `/api/*` return 401
 - [x] Authenticated requests to `/api/issues` return mock issue array
 - [x] User cannot access the admin panel if they are not admin role
-- [x] `POST /api/plans/short-term` returns valid plan JSON structure
+- [x] `POST /api/plans/codex` returns valid plan JSON structure
 
 ### Phase 2: Frontend UI
 
@@ -359,8 +348,7 @@ The MVP is scoped for **~4 hours** of focused development. Each phase has clear 
 
 3. **Issues landing page** (`/`):
    - Issues table with columns: Title, Severity, Kind, Namespace, Name, Actions
-   - "Short-term" button per row → opens modal
-   - "Long-term" button per row → opens modal
+   - "Cluster Codex" button per row → opens modal
    - Empty state: "No issues detected"
    - Loading state with spinner
 
@@ -371,8 +359,8 @@ The MVP is scoped for **~4 hours** of focused development. Each phase has clear 
    - Display generated plan with structured formatting
 
 5. **Plan renderer component**:
-   - Renders short-term plan: summary, risk level, steps with kubectl commands
-   - Renders long-term plan: summary, hypotheses, recommendations
+   - Renders Cluster Codex plan: summary, steps with kubectl commands
+   - Renders root cause hypotheses, evidence to gather, recommendations
    - Copy-to-clipboard for kubectl commands
 
 6. **Resource tabs page** (`/resources`):
@@ -439,14 +427,13 @@ The MVP is scoped for **~4 hours** of focused development. Each phase has clear 
    - `CODEX_MOCK_MODE=true` bypasses LLM calls
 
 4. **Frontend wiring**:
-   - `/api/plans/short-term` + `/api/plans/long-term` call real Codex service
+   - `/api/plans/codex` calls real Codex service
    - Plan renderer displays JSON schema-compliant output
 
 **Exit Criteria**:
 
 - [x] Codex SDK reachable and responds to test prompt
-- [x] `POST /api/plans/short-term` returns schema-valid JSON from LLM or mock
-- [x] `POST /api/plans/long-term` returns schema-valid JSON from LLM or mock
+- [x] `POST /api/plans/codex` returns schema-valid JSON from LLM or mock
 - [x] `CODEX_MOCK_MODE=true` produces deterministic responses
 - [x] `CODEX_MOCK_MODE=false` and `OPENAI_API_KEY=sk-*` produces Codex generated responses
 
@@ -459,7 +446,7 @@ The MVP is scoped for **~4 hours** of focused development. Each phase has clear 
 1. **Playwright E2E**:
    - Login as `admin@clustercodex.local`
    - Login as `user@clustercodex.local`
-   - View issues table and open short-term plan modal
+   - View issues table and open Codex plan modal
    - Generate a plan and assert structured output
 
 **Exit Criteria**:

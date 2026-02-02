@@ -13,13 +13,13 @@ Kubernetes troubleshooting is painful. When pods crash, deployments fail, or res
 
 ## The Solution
 
-Cluster Codex combines **automated issue detection** (via K8sGPT) with **LLM-powered short-term plans** to give developers actionable guidance in seconds.
+Cluster Codex combines **automated issue detection** (via K8sGPT) with **LLM-powered Cluster Codex plans** to give developers actionable guidance in seconds.
 
 ### Core Workflow
 
 1. **See** — Kubernetes issues detected automatically by K8sGPT
 2. **Understand** — AI-generated analysis explains what's wrong and why
-3. **Act** — Step-by-step short-term plans with `kubectl` commands
+3. **Act** — Step-by-step Cluster Codex plan with `kubectl` commands
 
 ## How It Works
 
@@ -52,7 +52,7 @@ graph BT
 
 1. **K8sGPT Operator** runs in-cluster, detecting issues via Result CRDs
 2. **Backend API** fetches Result CRDs, enriching with resource/event context
-3. **LLM (Codex)** generates structured short-term and long-term plans
+3. **LLM (Codex)** generates a Cluster Codex plan (action steps + analysis)
 4. **Frontend** displays issues and plans with user access filtering
 
 ## Features
@@ -63,7 +63,7 @@ View all detected Kubernetes issues:
 
 - Issue title, severity, affected resource, namespace
 - K8sGPT-provided context and analysis
-- One-click buttons to generate short-term or long-term plans
+- One-click button to generate a combined Codex plan
 
 ### Short-term Plans
 
@@ -151,8 +151,8 @@ clustercodex/
 
 ## Future Roadmap
 
-- **Agentic Execution**: Apply short-term plans using coding agents, with user approval
-- **Ticket Integration**: Create upstream issues for long-term fixes
+- **Agentic Execution**: Apply quick-fix steps using coding agents, with user approval
+- **Ticket Integration**: Create upstream issues from recommendations
 - **Storage and Auth**: True auth and data persistence using a durable solution (e.g., Supabase)
 - **Enhanced RBAC**: Per-action permissions beyond namespace/kind filtering
 - **More Resource Support**: View and manage all custom and standard Kubernetes resources

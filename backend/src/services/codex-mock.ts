@@ -1,10 +1,9 @@
-import type { CodexPlanIssue, ShortTermPlan, LongTermPlan } from "./codex-types.js";
+import type { CodexPlanIssue, CodexPlan } from "./codex-types.js";
 
-const shortTermByTitle: Record<string, ShortTermPlan> = {
+const quickFixByTitle: Record<string, CodexPlan["quickFix"]> = {
   crashloopbackoff: {
     summary: "Pod is crash-looping; check config and recent changes.",
     assumptions: ["Recent config or image changes may be causing the crash."],
-    riskLevel: "medium",
     steps: [
       {
         stepId: "step-1",
@@ -28,7 +27,6 @@ const shortTermByTitle: Record<string, ShortTermPlan> = {
   imagepullbackoff: {
     summary: "Image pull failed; validate image name and registry access.",
     assumptions: ["Image tag or registry credentials may be incorrect."],
-    riskLevel: "low",
     steps: [
       {
         stepId: "step-1",
@@ -52,7 +50,6 @@ const shortTermByTitle: Record<string, ShortTermPlan> = {
   oomkilled: {
     summary: "Pod was OOMKilled; validate memory usage and limits.",
     assumptions: ["Workload may exceed configured memory limits."],
-    riskLevel: "medium",
     steps: [
       {
         stepId: "step-1",
@@ -75,57 +72,57 @@ const shortTermByTitle: Record<string, ShortTermPlan> = {
   }
 };
 
-const longTermByTitle: Record<string, LongTermPlan> = {
+const analysisByTitle: Record<
+  string,
+  Pick<CodexPlan, "rootCauseHypotheses" | "evidenceToGather" | "recommendations">
+> = {
   crashloopbackoff: {
-    summary: "Harden config validation and rollout safety.",
     rootCauseHypotheses: ["Invalid config introduced during deploy."],
     evidenceToGather: ["Compare config versions", "Review deployment history"],
-    recommendations: ["Add config validation CI step", "Use canary deploys"],
-    riskLevel: "low"
+    recommendations: ["Add config validation CI step", "Use canary deploys"]
   },
   imagepullbackoff: {
-    summary: "Improve image publishing and registry checks.",
     rootCauseHypotheses: ["Missing image tag in registry"],
     evidenceToGather: ["CI logs for image build", "Registry audit logs"],
-    recommendations: ["Add publish verification", "Introduce tag promotion gates"],
-    riskLevel: "low"
+    recommendations: ["Add publish verification", "Introduce tag promotion gates"]
   },
   oomkilled: {
-    summary: "Tune memory and add observability for spikes.",
     rootCauseHypotheses: ["Memory leaks or undersized limits"],
     evidenceToGather: ["Heap profiles", "Historical memory metrics"],
-    recommendations: ["Add autoscaling based on memory", "Profile hot paths"],
-    riskLevel: "medium"
+    recommendations: ["Add autoscaling based on memory", "Profile hot paths"]
   }
 };
 
-export function getMockShortTermPlan(issue: CodexPlanIssue): ShortTermPlan {
+export function getMockPlan(issue: CodexPlanIssue): CodexPlan {
   const key = issue.title.toLowerCase();
-  return shortTermByTitle[key] || {
-    summary: "Investigate the issue with targeted checks.",
-    assumptions: ["Recent changes may have introduced the problem."],
-    riskLevel: "medium",
-    steps: [
-      {
-        stepId: "step-1",
-        description: "Inspect recent events and logs for the resource.",
-        kubectl: "kubectl describe <kind>/<name> -n <namespace>",
-        validation: "Events highlight the root error.",
-        rollback: null,
-        impact: "none"
-      }
-    ],
-    fallback: "Escalate to the platform team with collected evidence."
-  };
-}
+  const quickFix =
+    quickFixByTitle[key] || {
+      summary: "Investigate the issue with targeted checks.",
+      assumptions: ["Recent changes may have introduced the problem."],
+      steps: [
+        {
+          stepId: "step-1",
+          description: "Inspect recent events and logs for the resource.",
+          kubectl: "kubectl describe <kind>/<name> -n <namespace>",
+          validation: "Events highlight the root error.",
+          rollback: null,
+          impact: "none"
+        }
+      ],
+      fallback: "Escalate to the platform team with collected evidence."
+    };
 
-export function getMockLongTermPlan(issue: CodexPlanIssue): LongTermPlan {
-  const key = issue.title.toLowerCase();
-  return longTermByTitle[key] || {
-    summary: "Establish stronger prevention and detection controls.",
-    rootCauseHypotheses: ["Unknown configuration or runtime regression"],
-    evidenceToGather: ["Deployment diffs", "Resource metrics"],
-    recommendations: ["Add automated checks", "Improve alerting coverage"],
-    riskLevel: "medium"
+  const analysis =
+    analysisByTitle[key] || {
+      rootCauseHypotheses: ["Unknown configuration or runtime regression"],
+      evidenceToGather: ["Deployment diffs", "Resource metrics"],
+      recommendations: ["Add automated checks", "Improve alerting coverage"]
+    };
+
+  return {
+    quickFix,
+    rootCauseHypotheses: analysis.rootCauseHypotheses,
+    evidenceToGather: analysis.evidenceToGather,
+    recommendations: analysis.recommendations
   };
 }

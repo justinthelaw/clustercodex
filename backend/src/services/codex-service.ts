@@ -1,9 +1,5 @@
 import { Codex } from "@openai/codex-sdk";
-import type {
-  CodexPlanIssue,
-  LongTermPlan,
-  ShortTermPlan
-} from "./codex-types.js";
+import type { CodexPlanIssue, CodexPlan } from "./codex-types.js";
 
 type CodexClient = Codex;
 
@@ -60,10 +56,7 @@ export function redactSensitive(value: string): RedactionResult {
   return { redactedText: result, redactionCount };
 }
 
-function buildPrompt(
-  input: CodexPromptInput,
-  planType: "short-term" | "long-term"
-): { prompt: string; meta: PromptMeta } {
+function buildPrompt(input: CodexPromptInput): { prompt: string; meta: PromptMeta } {
   const { issue, userContext, allowList } = input;
   const userRedaction = redactSensitive(userContext || "");
   const errorRedaction = redactSensitive(issue.context?.errorText || "");
@@ -99,21 +92,16 @@ function buildPrompt(
     "- Each step must include impact + validation."
   ];
 
-  const instructions =
-    planType === "short-term"
-      ? [
-          "You are a Kubernetes incident assistant.",
-          "Return JSON only in the short-term schema.",
-          "Short-term schema fields: summary, assumptions, riskLevel, steps, fallback.",
-          "steps array must include stepId, description, kubectl (string or null), validation, rollback (string or null), impact.",
-          "RiskLevel must be low, medium, or high."
-        ]
-      : [
-          "You are a Kubernetes incident assistant.",
-          "Return JSON only in the long-term schema.",
-          "Long-term schema fields: summary, rootCauseHypotheses, evidenceToGather, recommendations, riskLevel.",
-          "RiskLevel must be low, medium, or high."
-        ];
+  const instructions = [
+    "You are a Kubernetes incident assistant.",
+    "Return JSON only in the combined schema.",
+    "Combined schema fields:",
+    "- quickFix: { summary, assumptions, steps, fallback }",
+    "- rootCauseHypotheses: string[]",
+    "- evidenceToGather: string[]",
+    "- recommendations: string[]",
+    "quickFix.steps must include stepId, description, kubectl (string or null), validation, rollback (string or null), impact."
+  ];
 
   const promptSections = [
     instructions.join("\n"),
@@ -154,16 +142,42 @@ function parseJsonResponse<T>(raw: string, fallback: T): T {
   }
 }
 
-function ensureShortTermPlan(raw: any, fallback: ShortTermPlan): ShortTermPlan {
+function ensureCodexPlan(raw: any, fallback: CodexPlan): CodexPlan {
   if (!raw || typeof raw !== "object") return fallback;
-  if (!raw.summary || !raw.riskLevel || !Array.isArray(raw.steps)) return fallback;
-  return raw as ShortTermPlan;
-}
+  if (!raw.quickFix || typeof raw.quickFix !== "object") return fallback;
 
-function ensureLongTermPlan(raw: any, fallback: LongTermPlan): LongTermPlan {
-  if (!raw || typeof raw !== "object") return fallback;
-  if (!raw.summary || !raw.riskLevel || !Array.isArray(raw.recommendations)) return fallback;
-  return raw as LongTermPlan;
+  const normalizeList = (items: any[]): string[] =>
+    items
+      .map((item) => {
+        if (typeof item === "string") return item;
+        if (item && typeof item === "object") {
+          if (typeof item.text === "string") return item.text;
+          if (typeof item.description === "string") return item.description;
+          if (typeof item.summary === "string") return item.summary;
+          return JSON.stringify(item);
+        }
+        return String(item ?? "");
+      })
+      .filter((item) => item.trim().length > 0);
+
+  const quickFix = raw.quickFix;
+  if (!quickFix.summary || !Array.isArray(quickFix.steps)) {
+    return fallback;
+  }
+
+  return {
+    quickFix: {
+      summary: String(quickFix.summary),
+      assumptions: normalizeList(Array.isArray(quickFix.assumptions) ? quickFix.assumptions : []),
+      steps: Array.isArray(quickFix.steps) ? quickFix.steps : [],
+      fallback: String(quickFix.fallback || "")
+    },
+    rootCauseHypotheses: normalizeList(Array.isArray(raw.rootCauseHypotheses) ? raw.rootCauseHypotheses : []),
+    evidenceToGather: normalizeList(Array.isArray(raw.evidenceToGather) ? raw.evidenceToGather : []),
+    recommendations: normalizeList(
+      Array.isArray(raw.recommendations) ? raw.recommendations : []
+    )
+  };
 }
 
 function logPromptMeta(meta: PromptMeta) {
@@ -181,12 +195,8 @@ function extractResponseText(result: unknown): string {
   return JSON.stringify(result ?? "");
 }
 
-async function callCodex<T>(
-  planType: "short-term" | "long-term",
-  input: CodexPromptInput,
-  fallback: T
-): Promise<T> {
-  const { prompt, meta } = buildPrompt(input, planType);
+async function callCodex<T>(input: CodexPromptInput, fallback: T): Promise<T> {
+  const { prompt, meta } = buildPrompt(input);
   logPromptMeta(meta);
 
   const client = createCodexClient();
@@ -197,20 +207,12 @@ async function callCodex<T>(
   return parsed;
 }
 
-export async function generateShortTermPlan(
+export async function generateCodexPlan(
   input: CodexPromptInput,
-  fallback: ShortTermPlan
-): Promise<ShortTermPlan> {
-  const result = await callCodex("short-term", input, fallback);
-  return ensureShortTermPlan(result, fallback);
-}
-
-export async function generateLongTermPlan(
-  input: CodexPromptInput,
-  fallback: LongTermPlan
-): Promise<LongTermPlan> {
-  const result = await callCodex("long-term", input, fallback);
-  return ensureLongTermPlan(result, fallback);
+  fallback: CodexPlan
+): Promise<CodexPlan> {
+  const result = await callCodex(input, fallback);
+  return ensureCodexPlan(result, fallback);
 }
 
 export { isMockMode };

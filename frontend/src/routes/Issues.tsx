@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../lib/api";
 import ErrorBanner from "../components/ErrorBanner";
 
@@ -25,15 +25,19 @@ export default function Issues() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
-  const [planType, setPlanType] = useState<"short-term" | "long-term" | null>(
-    null,
-  );
+  const [planOpen, setPlanOpen] = useState(false);
   const [userContext, setUserContext] = useState("");
   const [planLoading, setPlanLoading] = useState(false);
   const [planError, setPlanError] = useState("");
   const [planResult, setPlanResult] = useState<any | null>(null);
   const [contextSnapshot, setContextSnapshot] = useState("");
   const [view, setView] = useState<"active" | "dismissed">("active");
+  const [copyStatus, setCopyStatus] = useState<"idle" | "success" | "error">(
+    "idle"
+  );
+  const [copyPressed, setCopyPressed] = useState(false);
+  const [planHasScroll, setPlanHasScroll] = useState(false);
+  const planOutputRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -63,7 +67,7 @@ export default function Issues() {
 
   const closeModal = () => {
     setSelectedIssue(null);
-    setPlanType(null);
+    setPlanOpen(false);
     setUserContext("");
     setContextSnapshot("");
     setPlanLoading(false);
@@ -111,9 +115,9 @@ export default function Issues() {
     }
   };
 
-  const openModal = (issue: Issue, type: "short-term" | "long-term") => {
+  const openModal = (issue: Issue) => {
     setSelectedIssue(issue);
-    setPlanType(type);
+    setPlanOpen(true);
     setPlanResult(null);
     setPlanError("");
     if (issue.context) {
@@ -142,7 +146,7 @@ export default function Issues() {
   };
 
   const submitPlan = async () => {
-    if (!selectedIssue || !planType) return;
+    if (!selectedIssue) return;
     setPlanLoading(true);
     setPlanError("");
 
@@ -151,11 +155,7 @@ export default function Issues() {
       .join("\\n\\n");
 
     try {
-      const endpoint =
-        planType === "short-term"
-          ? "/api/plans/short-term"
-          : "/api/plans/long-term";
-      const response = await api.post(endpoint, {
+      const response = await api.post("/api/plans/codex", {
         issueId: selectedIssue.id,
         userContext: mergedContext,
       });
@@ -168,39 +168,59 @@ export default function Issues() {
   };
 
   const planText = useMemo(() => {
-    if (!planResult || !planType) return "";
+    if (!planResult) return "";
 
-    if (planType === "short-term") {
-      const lines = [
-        `Summary: ${planResult.summary || ""}`,
-        `Risk: ${planResult.riskLevel || ""}`,
-        "Steps:",
-      ];
-      (planResult.steps || []).forEach((step: any, idx: number) => {
-        lines.push(`${idx + 1}. ${step.description || ""}`);
-        if (step.kubectl) lines.push(`   kubectl: ${step.kubectl}`);
-        if (step.validation) lines.push(`   Validation: ${step.validation}`);
-        if (step.rollback) lines.push(`   Rollback: ${step.rollback}`);
-        if (step.impact) lines.push(`   Impact: ${step.impact}`);
-      });
-      lines.push(`Fallback: ${planResult.fallback || ""}`);
-      return lines.join("\n");
-    }
-
+    const quickFix = planResult.quickFix || {};
     const lines = [
-      `Summary: ${planResult.summary || ""}`,
-      `Risk: ${planResult.riskLevel || ""}`,
-      "Root Cause Hypotheses:",
-      ...(planResult.rootCauseHypotheses || []).map(
-        (item: string) => `- ${item}`,
-      ),
-      "Evidence to Gather:",
-      ...(planResult.evidenceToGather || []).map((item: string) => `- ${item}`),
-      "Recommendations:",
-      ...(planResult.recommendations || []).map((item: string) => `- ${item}`),
+      `Summary: ${quickFix.summary || ""}\n`,
+      "Steps:",
     ];
+    (quickFix.steps || []).forEach((step: any, idx: number) => {
+      lines.push(`${idx + 1}. ${step.description || ""}`);
+      if (step.kubectl) lines.push(`   kubectl: ${step.kubectl}`);
+      if (step.validation) lines.push(`   Validation: ${step.validation}`);
+      if (step.rollback) lines.push(`   Rollback: ${step.rollback}`);
+      if (step.impact) lines.push(`   Impact: ${step.impact}`);
+    });
+    lines.push("");
+    lines.push(`Fallback: ${quickFix.fallback || ""}`);
+    lines.push("");
+    lines.push("Root Cause Hypotheses:");
+    (planResult.rootCauseHypotheses || []).forEach((item: string) => {
+      lines.push(`- ${item}`);
+    });
+    lines.push("Evidence to Gather:");
+    (planResult.evidenceToGather || []).forEach((item: string) => {
+      lines.push(`- ${item}`);
+    });
+    lines.push("Recommendations:");
+    (planResult.recommendations || []).forEach((item: string) => {
+      lines.push(`- ${item}`);
+    });
     return lines.join("\n");
-  }, [planResult, planType]);
+  }, [planResult]);
+
+  useEffect(() => {
+    const node = planOutputRef.current;
+    if (!node) {
+      setPlanHasScroll(false);
+      return;
+    }
+    const hasScroll = node.scrollHeight > node.clientHeight + 1;
+    setPlanHasScroll(hasScroll);
+  }, [planText]);
+
+  const handleCopyPlan = async () => {
+    if (!planText) return;
+    try {
+      await navigator.clipboard.writeText(planText);
+      setCopyStatus("success");
+    } catch {}
+    finally {
+      setCopyPressed(false);
+      setTimeout(() => setCopyStatus("idle"), 2000);
+    }
+  };
 
   return (
     <div className="card">
@@ -257,16 +277,10 @@ export default function Issues() {
                       {view === "active" ? (
                         <>
                           <button
-                            className="button"
-                            onClick={() => openModal(issue, "short-term")}
-                          >
-                            Quick Fix
-                          </button>
-                          <button
                             className="button tertiary"
-                            onClick={() => openModal(issue, "long-term")}
+                            onClick={() => openModal(issue)}
                           >
-                            Long-term Fix
+                            Cluster Codex
                           </button>
                           <button
                             className="button danger"
@@ -292,7 +306,7 @@ export default function Issues() {
         </table>
       )}
 
-      {selectedIssue && planType && (
+      {selectedIssue && planOpen && (
         <div
           style={{
             position: "fixed",
@@ -319,14 +333,10 @@ export default function Issues() {
                 justifyContent: "space-between",
                 alignItems: "center",
                 gap: "16px",
-                marginBottom: "16px"
+                marginBottom: "16px",
               }}
             >
-              <h2 style={{ margin: 0 }}>
-                {planType === "short-term"
-                  ? "Quick Fix"
-                  : "Long-Term Fix"}
-              </h2>
+              <h2 style={{ margin: 0 }}>Cluster Codex</h2>
               <button
                 className="button secondary"
                 onClick={closeModal}
@@ -372,7 +382,8 @@ export default function Issues() {
                     marginLeft: "6px",
                   }}
                 >
-                  Please scrub any sensitive data before generating a plan.
+                  Cluster Codex will redact sensitive data, but edit the
+                  context above as necessary prior to generating a plan.
                 </div>
               </div>
               <div className="form-field" style={{ marginBottom: 0 }}>
@@ -411,7 +422,7 @@ export default function Issues() {
                     onClick={submitPlan}
                     disabled={planLoading}
                   >
-                    {planLoading ? "Generating..." : "Generate plan"}
+                    {planLoading ? "Generating..." : "Generate Plan"}
                   </button>
                 </div>
               )}
@@ -419,24 +430,70 @@ export default function Issues() {
                 <div>
                   <div className="form-field" style={{ marginBottom: 0 }}>
                     <label htmlFor="planOutput">Generated Plan</label>
-                    <textarea
-                      id="planOutput"
-                      value={planText}
-                      readOnly
-                      style={{
-                        background: "#0b0b0b",
-                        color: "#e5e5e5",
-                        padding: "12px 14px",
-                        borderRadius: "10px",
-                        border: "1px solid #202020",
-                        whiteSpace: "pre-wrap",
-                        height: "500px",
-                        overflowY: "auto",
-                        margin: 0,
-                        width: "100%",
-                        resize: "none",
-                      }}
-                    />
+                    <div style={{ position: "relative" }}>
+                      <textarea
+                        id="planOutput"
+                        ref={planOutputRef}
+                        value={planText}
+                        readOnly
+                        style={{
+                          background: "#0b0b0b",
+                          color: "#e5e5e5",
+                          padding: "12px 14px",
+                          borderRadius: "10px",
+                          border: "1px solid #202020",
+                          whiteSpace: "pre-wrap",
+                          height: "500px",
+                          overflowY: "auto",
+                          margin: 0,
+                          width: "100%",
+                          resize: "none",
+                        }}
+                      />
+                      <button
+                        onClick={handleCopyPlan}
+                        onMouseDown={() => setCopyPressed(true)}
+                        onMouseUp={() => setCopyPressed(false)}
+                        onMouseLeave={() => setCopyPressed(false)}
+                        type="button"
+                        style={{
+                          position: "absolute",
+                          bottom: "10px",
+                          right: planHasScroll ? "20px" : "5px",
+                          background:
+                            copyStatus === "success"
+                              ? "rgba(34, 197, 94, 0.2)"
+                              : copyStatus === "error"
+                              ? "rgba(239, 68, 68, 0.2)"
+                              : "rgba(255, 255, 255, 0.08)",
+                          color: "#e5e5e5",
+                          border: "1px solid #2a2a2a",
+                          borderRadius: "8px",
+                          padding: "6px 10px",
+                          fontSize: "12px",
+                          letterSpacing: "0.01em",
+                          cursor: "pointer",
+                          opacity: 0.85,
+                          transform: copyPressed ? "scale(0.96)" : "scale(1)",
+                          transition:
+                            "transform 120ms ease, background 160ms ease",
+                        }}
+                        aria-label="Copy plan text"
+                        title={
+                          copyStatus === "success"
+                            ? "Copied"
+                            : copyStatus === "error"
+                            ? "Copy failed"
+                            : "Copy"
+                        }
+                      >
+                        {copyStatus === "success"
+                          ? "Copied"
+                          : copyStatus === "error"
+                          ? "Copy failed"
+                          : "Copy"}
+                      </button>
+                    </div>
                   </div>
                   <div
                     style={{
@@ -455,7 +512,7 @@ export default function Issues() {
                       onClick={submitPlan}
                       disabled={planLoading}
                     >
-                      {planLoading ? "Regenerating..." : "Regenerate plan"}
+                      {planLoading ? "Regenerating..." : "Regenerate Plan"}
                     </button>
                   </div>
                 </div>

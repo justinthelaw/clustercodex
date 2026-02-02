@@ -15,25 +15,21 @@ export type CodexPlanIssue = {
   };
 };
 
-export type ShortTermPlan = {
-  summary: string;
-  assumptions: string[];
-  riskLevel: "low" | "medium" | "high";
-  steps: Array<{
-    stepId: string;
-    description: string;
-    kubectl: string | null;
-    validation: string;
-    rollback: string | null;
-    impact: "none" | "low" | "medium" | "high";
-  }>;
-  fallback: string;
-};
-
-export type LongTermPlan = {
-  summary: string;
+export type CodexPlan = {
+  quickFix: {
+    summary: string;
+    assumptions: string[];
+    steps: Array<{
+      stepId: string;
+      description: string;
+      kubectl: string | null;
+      validation: string;
+      rollback: string | null;
+      impact: "none" | "low" | "medium" | "high";
+    }>;
+    fallback: string;
+  };
   rootCauseHypotheses: string[];
   evidenceToGather: string[];
   recommendations: string[];
-  riskLevel: "low" | "medium" | "high";
 };
