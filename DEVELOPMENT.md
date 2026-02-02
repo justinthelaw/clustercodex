@@ -35,9 +35,12 @@ npm run dev
 - Backend API: <http://localhost:3001>
 - Backend Health: <http://localhost:3001/health>
 
-**In-Cluster Services** (accessed via kubeconfig):
+**In-Cluster Resources** (accessed via kubeconfig):
 
-- K8sGPT Operator: `k8sgpt-operator` namespace, Result CRDs in target namespaces
+- K8sGPT Operator: `k8sgpt-operator-system` namespace
+- Broken Deployment: `broken` namespace, displays a `ImagePullBackOff` error
+- GPU Test Deployment: `gpu-test` namespace, displays an infinite `Pending` state
+- PodInfo Deployment: `podinfo` namespace, displays an `InvalidImageName` error
 
 ### Useful Commands
 
