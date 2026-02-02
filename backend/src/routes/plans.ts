@@ -47,6 +47,7 @@ router.post("/codex", async (req, res, next) => {
     const fallback = getMockPlan(issue);
 
     if (isMockMode()) {
+      await new Promise((resolve) => setTimeout(resolve, 3000));
       return res.json(fallback);
     }
 

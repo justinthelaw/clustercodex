@@ -3,6 +3,7 @@ set -euo pipefail
 
 CLUSTER_NAME=${CLUSTER_NAME:-clustercodex}
 KUBE_CONTEXT="k3d-${CLUSTER_NAME}"
+K8SGPT_NAMESPACE="k8sgpt-operator-system"
 
 command -v k3d >/dev/null 2>&1 || { echo "k3d is required"; exit 1; }
 command -v kubectl >/dev/null 2>&1 || { echo "kubectl is required"; exit 1; }
@@ -21,7 +22,7 @@ echo "Installing K8sGPT Operator"
 helm repo add k8sgpt https://charts.k8sgpt.ai/ >/dev/null
 helm repo update >/dev/null
 helm upgrade --install k8sgpt-operator k8sgpt/k8sgpt-operator \
-  --namespace k8sgpt-operator-system \
+  --namespace "${K8SGPT_NAMESPACE}" \
   --create-namespace
 
 echo "Installing K8sGPT configuration"
@@ -37,9 +38,6 @@ kubectl apply -f ./charts/broken-deployment/deployment.yaml
 echo "Deploying GPU pod into a non-GPU cluster"
 kubectl apply -f ./charts/gpu-test/deployment.yaml
 
-echo "Checking K8sGPT Result CRDs"
-kubectl get results -A || true
-
 echo "Waiting up to 60s for Result CRDs in namespace: ${K8SGPT_NAMESPACE}"
 FOUND_RESULTS=false
 for i in {1..12}; do
@@ -53,11 +51,8 @@ for i in {1..12}; do
 done
 
 if [ "${FOUND_RESULTS}" = true ]; then
-  echo "Result CRDs found:"
-  kubectl get results -n "${K8SGPT_NAMESPACE}"
+  echo "Cluster Codex testing and dev infrastructure ready."
 else
   echo "No Result CRDs found in ${K8SGPT_NAMESPACE} after 60s. Please check the cluster and K8sGPT deployment for issues."
   exit 1
 fi
-
-echo "Cluster Codex testing and dev infrastructure ready."

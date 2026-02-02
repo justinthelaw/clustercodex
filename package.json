@@ -10,9 +10,12 @@
     "dev:backend": "npm --prefix backend run dev",
     "dev:frontend": "npm --prefix frontend run dev",
     "infra:start": "./scripts/start-infra.sh",
-    "infra:stop": "./scripts/stop-infra.sh"
+    "infra:stop": "./scripts/stop-infra.sh",
+    "test:e2e": "npm run infra:stop && npm run infra:start && ./scripts/test-e2e.sh",
+    "postinstall": "playwright install --with-deps"
   },
   "devDependencies": {
+    "@playwright/test": "^1.51.0",
     "concurrently": "^8.2.2"
   }
 }

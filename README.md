@@ -109,13 +109,13 @@ Central access control management:
 | [K8sGPT Operator](https://docs.k8sgpt.ai/getting-started/in-cluster-operator/) | In-cluster issue detection     |
 | [K3d](https://k3d.io/stable)                                                   | Local Kubernetes cluster       |
 | [OpenAI SDK](https://github.com/openai/openai-node)                            | LLM client (mock mode for MVP) |
-| [@kubernetes/client-node](https://github.com/kubernetes-client/javascript)     | Direct K8s API access          |
+| [Kubernetes Client Node](https://github.com/kubernetes-client/javascript)      | Direct K8s API access          |
 
 ### Post-MVP
 
-| Technology                                          | Purpose                   |
-| --------------------------------------------------- | ------------------------- |
-| [Playwright](https://playwright.dev)                | E2E testing               |
+| Technology                           | Purpose     |
+| ------------------------------------ | ----------- |
+| [Playwright](https://playwright.dev) | E2E testing |
 
 ## Quick Start
 
@@ -143,8 +143,10 @@ See [IMPLEMENTATION.md](IMPLEMENTATION.md) for detailed setup and development wo
 clustercodex/
 ├── frontend/          # React + Vite application
 ├── backend/           # Express API server
+├── tests/             # Playwright end-to-end tests
 ├── scripts/           # Infrastructure orchestration
 ├── charts/            # Helm charts (K8sGPT Operator)
+├── DEVELOPMENT.md.    # Local development guide
 ├── IMPLEMENTATION.md  # Detailed implementation plan
 └── README.md          # This file
 ```
