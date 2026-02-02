@@ -25,16 +25,16 @@ Cluster Codex combines **automated issue detection** (via K8sGPT) with **LLM-pow
 
 ```mermaid
 graph BT
-    Cluster["Kubernetes<br/>Cluster"]
+    Cluster["Kubernetes Cluster"]
 
     subgraph ClusterCodex["Cluster Codex"]
-        K8sGPT["K8sGPT<br/>Operator"]
-        K8sClient["Kubernetes<br/>Client"]
-        LLM["LLM<br/>(Codex)"]
+        K8sGPT["K8sGPT Operator"]
+        K8sClient["Kubernetes Client"]
+        LLM["OpenAI Codex"]
         API["Express API"]
-        Landing["Landing<br/>(Issues)"]
-        Resources["Resource<br/>Tabs"]
-        Admin["Admin<br/>Portal"]
+        Landing["Landing Page (Issues)"]
+        Resources["Resource Tabs"]
+        Admin["Admin Portal"]
 
         K8sGPT --> API
         K8sClient --> API
@@ -47,7 +47,6 @@ graph BT
 
     Cluster --> K8sGPT
     Cluster --> K8sClient
-    Cluster --> LLM
 ```
 
 1. **K8sGPT Operator** runs in-cluster, detecting issues via Result CRDs
