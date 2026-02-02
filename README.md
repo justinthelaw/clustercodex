@@ -126,6 +126,10 @@ git clone https://github.com/justinthelaw/clustercodex.git
 cd clustercodex
 npm run install
 
+# Setup environment
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend.env
+
 # Start development (separate terminals)
 npm run infra:start     # K3d cluster
 npm run dev             # Frontend + Backend

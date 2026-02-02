@@ -3,14 +3,16 @@
 ## Start here
 
 - Product vision, scope, architecture diagram, and workflow: [README.md](README.md)
-- Local setup, dev workflow, and test commands: [DEVELOPMENT.md](DEVELOPMENT.md)
-- Architectural plan, MVP scope, and phased checklists: [IMPLEMENTATION.md](IMPLEMENTATION.md)
+- Local setup, dev workflow, and test commands (including ancillary infra): [DEVELOPMENT.md](DEVELOPMENT.md)
+- Architectural plan, MVP scope, and phased checklists (primary execution blueprint): [IMPLEMENTATION.md](IMPLEMENTATION.md)
 
 ## How to collaborate with me
 
 ### Source of truth
 
-Use [IMPLEMENTATION.md](IMPLEMENTATION.md) as the primary blueprint. It is where my coding agent and I collaborate on what to build (architecturally) and how to phase the MVP implementation together. This is a living document.
+Use [IMPLEMENTATION.md](IMPLEMENTATION.md) as the primary blueprint. It is where my coding agent and I collaborate on what to build (architecturally) and how to phase the MVP implementation together. This is a living document and should be kept accurate as requirements evolve.
+
+Before implementing changes, review [DEVELOPMENT.md](DEVELOPMENT.md) for the developer's usual local setup, dev workflow, and ancillary infrastructure expectations.
 
 ### Phased delivery
 

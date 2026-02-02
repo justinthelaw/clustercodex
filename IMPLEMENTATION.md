@@ -228,7 +228,7 @@ Unit tests must assert redaction.
 - Collect issue + user context.
 - Show loading state with spinner.
 - Render structured plan with steps.
-- “Save plan” writes to in-memory storage (Phase 1).
+- Copy button allows simple export of Codex-generated plan.
 
 ### Resource Tabs
 
