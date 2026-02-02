@@ -49,7 +49,7 @@ npm run dev
   - Use `kubectl get Results -n k8sgpt-operator-system` to get the `Results` CRDs that contain cluster issues from the K8sGPT scanner
 - Broken Deployment: `broken` namespace, displays a `ImagePullBackOff` error
 - GPU Test Deployment: `gpu-test` namespace, displays an infinite `Pending` state
-- PodInfo Deployment: `podinfo` namespace, displays an `InvalidImageName` error
+- PodInfo Deployment: `default` namespace, displays an `InvalidImageName` error
 
 ### Useful Commands
 

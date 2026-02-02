@@ -87,7 +87,7 @@ Scripts in `scripts/` handle complex orchestration:
 
 **AccessPolicy** (for `user@clustercodex.local`):
 
-- namespaceAllowList: `["broken", "podinfo"]`
+- namespaceAllowList: `["broken", "default"]`
 - kindAllowList: `["Pod", "Deployment", "Event"]`
 
 **AccessPolicy** (for `admin@clustercodex.local`):
