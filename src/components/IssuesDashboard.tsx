@@ -8,6 +8,7 @@ import { generateLocalPlan } from "@/lib/plan-generator";
 import type { CodexAuthStatus, CodexPlan, Issue } from "@/lib/types";
 
 export default function IssuesDashboard() {
+  const e2eDeterministicFallbackEnabled = process.env.NEXT_PUBLIC_CLUSTERCODEX_E2E_MODE === "1";
   const [issues, setIssues] = useState<Issue[]>([]);
   const [dismissedIssues, setDismissedIssues] = useState<Issue[]>([]);
   const [loading, setLoading] = useState(true);
@@ -215,12 +216,17 @@ export default function IssuesDashboard() {
       if (result.warning) {
         setPlanWarning(result.warning);
       }
-    } catch {
-      const mergedContext = [contextSnapshot.trim(), userContext.trim()].filter(Boolean).join("\n\n");
-      const fallback = generateLocalPlan(selectedIssue, mergedContext);
-      setPlanResult(fallback);
-      setPlanSource("Local fallback (client-side deterministic planner)");
-      setPlanWarning("Failed to contact plan API. Using deterministic fallback.");
+    } catch (error) {
+      if (e2eDeterministicFallbackEnabled) {
+        const mergedContext = [contextSnapshot.trim(), userContext.trim()].filter(Boolean).join("\n\n");
+        const fallback = generateLocalPlan(selectedIssue, mergedContext);
+        setPlanResult(fallback);
+        setPlanSource("Local fallback (client-side deterministic planner, E2E mode)");
+        setPlanWarning("Failed to contact plan API in E2E mode. Using deterministic fallback.");
+      } else {
+        const message = error instanceof Error ? error.message : "Failed to generate plan.";
+        setPlanError(message);
+      }
     } finally {
       setPlanLoading(false);
     }

@@ -16,6 +16,11 @@ type PlanRequestBody = {
   userContext?: string;
 };
 
+type ApiErrorBody = {
+  error: string;
+  details: string;
+};
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -49,6 +54,15 @@ function localFallback(issue: Issue, context: string, warning: string): PlanGene
   };
 }
 
+function deterministicFallbackEnabled(): boolean {
+  return process.env.CLUSTERCODEX_E2E_MODE === "1";
+}
+
+function errorResponse(status: number, error: string, details: string) {
+  const body: ApiErrorBody = { error, details };
+  return NextResponse.json(body, { status });
+}
+
 export async function POST(request: Request) {
   let body: PlanRequestBody;
   try {
@@ -74,18 +88,17 @@ export async function POST(request: Request) {
   const issue = body.issue;
   const context = mergedContext(body.contextSnapshot, body.userContext);
   const authStatus = await getCodexAuthStatus();
+  const e2eMode = deterministicFallbackEnabled();
 
   if (!authStatus.authenticated) {
     const loginHint = authStatus.loginCommand
       ? ` Run \`${authStatus.loginCommand}\` to authenticate and regenerate.`
       : "";
-    return NextResponse.json(
-      localFallback(
-        issue,
-        context,
-        `${authStatus.details}${loginHint}`
-      )
-    );
+    const details = `${authStatus.details}${loginHint}`;
+    if (e2eMode) {
+      return NextResponse.json(localFallback(issue, context, details));
+    }
+    return errorResponse(401, "Codex authentication required", details);
   }
 
   try {
@@ -103,17 +116,25 @@ export async function POST(request: Request) {
       const loginHint = authStatus.loginCommand
         ? ` Run \`${authStatus.loginCommand}\` to authenticate and regenerate.`
         : "";
+      const authDetails = `${authStatus.details}${loginHint}`;
+      if (e2eMode) {
+        return NextResponse.json(
+          localFallback(
+            issue,
+            context,
+            `Codex authentication failed. ${authDetails}`
+          )
+        );
+      }
+      return errorResponse(401, "Codex authentication failed", authDetails);
+    }
+
+    if (e2eMode) {
       return NextResponse.json(
-        localFallback(
-          issue,
-          context,
-          `Codex authentication failed. ${authStatus.details}${loginHint}`
-        )
+        localFallback(issue, context, `Live Codex plan generation failed. Falling back to local planner. ${details}`)
       );
     }
 
-    return NextResponse.json(
-      localFallback(issue, context, `Live Codex plan generation failed. Falling back to local planner. ${details}`)
-    );
+    return errorResponse(502, "Live Codex plan generation failed", details);
   }
 }

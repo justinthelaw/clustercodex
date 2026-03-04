@@ -20,7 +20,7 @@
     "infra:stop": "./scripts/stop-infra.sh",
     "clean": "./scripts/clean.sh && ./scripts/stop-infra.sh",
     "flight-check": "npm run clean && npm install && npm run lint && npm run build && npm run test",
-    "postinstall": "playwright install --with-deps && cp .env.example .env"
+    "postinstall": "playwright install --with-deps && if [ ! -f .env ]; then cp .env.example .env; fi"
   },
   "dependencies": {
     "@kubernetes/client-node": "^1.4.0",
