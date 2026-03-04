@@ -10,18 +10,17 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "./scripts/stop-infra.sh && ./scripts/start-infra.sh && next dev",
     "build": "next build --experimental-build-mode compile",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "lint": "PRE_COMMIT_HOME=/tmp/pre-commit-cache pre-commit run --all-files --hook-stage pre-commit",
-    "test": "npm run test:e2e",
+    "test": "./scripts/start-infra.sh && ./scripts/test-e2e.sh && ./scripts/stop-infra.sh",
     "infra:start": "./scripts/start-infra.sh",
     "infra:stop": "./scripts/stop-infra.sh",
-    "test:e2e": "npm run infra:stop && npm run infra:start && ./scripts/test-e2e.sh",
-    "clean": "./scripts/clean.sh",
+    "clean": "./scripts/clean.sh && ./scripts/stop-infra.sh",
     "flight-check": "npm run clean && npm install && npm run lint && npm run build && npm run test",
-    "postinstall": "playwright install --with-deps"
+    "postinstall": "playwright install --with-deps && cp .env.example .env"
   },
   "dependencies": {
     "@kubernetes/client-node": "^1.4.0",

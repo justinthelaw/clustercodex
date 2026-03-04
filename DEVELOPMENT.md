@@ -77,7 +77,7 @@ npm run infra:stop
 npm run infra:start
 
 # Terminal 2
-npm run test:e2e
+npm run test
 ```
 
 For the full local CI-equivalent gate (clean + lint + build + E2E):

@@ -22,53 +22,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Setup Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: "3.12"
-
-      - name: Install pre-commit
-        run: pip install pre-commit
-
-      - name: Setup Node
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
-        with:
-          node-version: "20"
-          cache: npm
-
-      - name: Install kubectl
-        shell: bash
-        run: |
-          set -euo pipefail
-          KUBECTL_VERSION="v1.34.1"
-          curl -fsSL -o kubectl "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
-          chmod +x kubectl
-          sudo mv kubectl /usr/local/bin/kubectl
-          kubectl version --client
-
-      - name: Install Helm
-        shell: bash
-        run: |
-          set -euo pipefail
-          HELM_VERSION="v3.19.0"
-          curl -fsSL "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" -o helm.tar.gz
-          tar -xzf helm.tar.gz
-          sudo mv linux-amd64/helm /usr/local/bin/helm
-          rm -rf linux-amd64 helm.tar.gz
-          helm version
-
-      - name: Install k3d
-        shell: bash
-        run: |
-          set -euo pipefail
-          K3D_VERSION="v5.8.3"
-          curl -fsSL "https://github.com/k3d-io/k3d/releases/download/${K3D_VERSION}/k3d-linux-amd64" -o k3d
-          chmod +x k3d
-          sudo mv k3d /usr/local/bin/k3d
-          k3d version
-
-      - name: Install dependencies
-        run: npm install
+      - name: Setup Tooling
+        uses: ./.github/actions/setup
 
       - name: Run Flight Check
         run: npm run flight-check

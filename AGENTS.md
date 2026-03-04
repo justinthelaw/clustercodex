@@ -25,5 +25,5 @@
 
 - `pre-commit run --all-files`
 - `npm run build`
-- `npm run test:e2e` for E2E-impacting changes
+- `npm run test` for E2E-impacting changes
 - `npm run flight-check` for the full local CI-equivalent gate

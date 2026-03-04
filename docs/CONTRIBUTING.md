@@ -28,7 +28,7 @@ Run these checks before pushing:
 ```bash
 pre-commit run --all-files
 npm run build
-npm run test:e2e
+npm run test
 ```
 
 Or run the full gate in one command:
