@@ -1,4 +1,10 @@
-import type { Issue, ResourceItem, ResourceKind } from "@/lib/types";
+import type {
+  CodexAuthStatus,
+  Issue,
+  PlanGenerationResponse,
+  ResourceItem,
+  ResourceKind
+} from "@/lib/types";
 
 async function getJson<T>(path: string): Promise<T> {
   const response = await fetch(path, {
@@ -23,6 +29,33 @@ async function getJson<T>(path: string): Promise<T> {
   return (await response.json()) as T;
 }
 
+async function postJson<T>(path: string, body: unknown): Promise<T> {
+  const response = await fetch(path, {
+    method: "POST",
+    cache: "no-store",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(body)
+  });
+
+  if (!response.ok) {
+    let message = `Request failed (${response.status})`;
+    try {
+      const parsed = (await response.json()) as { error?: string; details?: string };
+      if (parsed?.error) {
+        message = parsed.details ? `${parsed.error}: ${parsed.details}` : parsed.error;
+      }
+    } catch {
+      // Fall back to status-only message.
+    }
+
+    throw new Error(message);
+  }
+
+  return (await response.json()) as T;
+}
+
 export async function listIssues(): Promise<Issue[]> {
   return getJson<Issue[]>("/api/issues");
 }
@@ -30,4 +63,20 @@ export async function listIssues(): Promise<Issue[]> {
 export async function listResources(kind: ResourceKind): Promise<ResourceItem[]> {
   const query = new URLSearchParams({ kind }).toString();
   return getJson<ResourceItem[]>(`/api/resources?${query}`);
+}
+
+export async function generatePlan(
+  issue: Issue,
+  contextSnapshot: string,
+  userContext: string
+): Promise<PlanGenerationResponse> {
+  return postJson<PlanGenerationResponse>("/api/plan", {
+    issue,
+    contextSnapshot,
+    userContext
+  });
+}
+
+export async function getCodexAuthStatus(): Promise<CodexAuthStatus> {
+  return getJson<CodexAuthStatus>("/api/codex/auth");
 }

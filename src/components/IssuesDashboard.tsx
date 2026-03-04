@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import ErrorBanner from "@/components/ErrorBanner";
 import { loadDismissedIssueIds, saveDismissedIssueIds } from "@/lib/dismissed-issues";
-import { listIssues } from "@/lib/k8s-client";
+import { generatePlan, getCodexAuthStatus, listIssues } from "@/lib/k8s-client";
 import { generateLocalPlan } from "@/lib/plan-generator";
-import type { CodexPlan, Issue } from "@/lib/types";
+import type { CodexAuthStatus, CodexPlan, Issue } from "@/lib/types";
 
 export default function IssuesDashboard() {
   const [issues, setIssues] = useState<Issue[]>([]);
@@ -17,12 +17,19 @@ export default function IssuesDashboard() {
   const [userContext, setUserContext] = useState("");
   const [planLoading, setPlanLoading] = useState(false);
   const [planError, setPlanError] = useState("");
+  const [planWarning, setPlanWarning] = useState("");
+  const [planSource, setPlanSource] = useState("");
   const [planResult, setPlanResult] = useState<CodexPlan | null>(null);
   const [contextSnapshot, setContextSnapshot] = useState("");
   const [view, setView] = useState<"active" | "dismissed">("active");
   const [copyStatus, setCopyStatus] = useState<"idle" | "success" | "error">("idle");
   const [copyPressed, setCopyPressed] = useState(false);
   const [planHasScroll, setPlanHasScroll] = useState(false);
+  const [codexOAuthConnected, setCodexOAuthConnected] = useState<boolean | null>(null);
+  const [codexAuthMethod, setCodexAuthMethod] = useState<CodexAuthStatus["method"] | null>(null);
+  const [codexProvider, setCodexProvider] = useState("");
+  const [codexAuthDetails, setCodexAuthDetails] = useState("");
+  const [codexLoginCommand, setCodexLoginCommand] = useState<string | null>(null);
   const planOutputRef = useRef<HTMLTextAreaElement | null>(null);
 
   const loadData = async () => {
@@ -48,6 +55,53 @@ export default function IssuesDashboard() {
     void loadData();
   }, []);
 
+  useEffect(() => {
+    if (!planOpen || !selectedIssue) {
+      setCodexOAuthConnected(null);
+      setCodexAuthMethod(null);
+      setCodexProvider("");
+      setCodexAuthDetails("");
+      setCodexLoginCommand(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadCodexAuthStatus = async () => {
+      setCodexOAuthConnected(null);
+      setCodexAuthMethod(null);
+      setCodexProvider("");
+      setCodexAuthDetails("");
+      setCodexLoginCommand(null);
+      try {
+        const status = await getCodexAuthStatus();
+        if (cancelled) {
+          return;
+        }
+        setCodexOAuthConnected(status.authenticated);
+        setCodexAuthMethod(status.method);
+        setCodexProvider(status.provider);
+        setCodexAuthDetails(status.details);
+        setCodexLoginCommand(status.loginCommand || null);
+      } catch {
+        if (cancelled) {
+          return;
+        }
+        setCodexOAuthConnected(null);
+        setCodexAuthMethod(null);
+        setCodexProvider("");
+        setCodexAuthDetails("Unable to confirm Codex OAuth status.");
+        setCodexLoginCommand(null);
+      }
+    };
+
+    void loadCodexAuthStatus();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [planOpen, selectedIssue]);
+
   const closeModal = () => {
     setSelectedIssue(null);
     setPlanOpen(false);
@@ -55,7 +109,14 @@ export default function IssuesDashboard() {
     setContextSnapshot("");
     setPlanLoading(false);
     setPlanError("");
+    setPlanWarning("");
+    setPlanSource("");
     setPlanResult(null);
+    setCodexOAuthConnected(null);
+    setCodexAuthMethod(null);
+    setCodexProvider("");
+    setCodexAuthDetails("");
+    setCodexLoginCommand(null);
   };
 
   const handleDismiss = (issueId: string) => {
@@ -107,6 +168,8 @@ export default function IssuesDashboard() {
     setPlanOpen(true);
     setPlanResult(null);
     setPlanError("");
+    setPlanWarning("");
+    setPlanSource("");
 
     if (issue.context) {
       const { kind, name, errorText, eventsTable, definition } = issue.context;
@@ -141,14 +204,23 @@ export default function IssuesDashboard() {
 
     setPlanLoading(true);
     setPlanError("");
+    setPlanWarning("");
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 200));
-      const mergedContext = [contextSnapshot.trim(), userContext.trim()].filter(Boolean).join("\n\n");
-      const result = generateLocalPlan(selectedIssue, mergedContext);
-      setPlanResult(result);
+      const result = await generatePlan(selectedIssue, contextSnapshot, userContext);
+      setPlanResult(result.plan);
+      setPlanSource(
+        result.provider === "codex" ? `Live Codex SDK (${result.model})` : `Local fallback (${result.model})`
+      );
+      if (result.warning) {
+        setPlanWarning(result.warning);
+      }
     } catch {
-      setPlanError("Failed to generate plan");
+      const mergedContext = [contextSnapshot.trim(), userContext.trim()].filter(Boolean).join("\n\n");
+      const fallback = generateLocalPlan(selectedIssue, mergedContext);
+      setPlanResult(fallback);
+      setPlanSource("Local fallback (client-side deterministic planner)");
+      setPlanWarning("Failed to contact plan API. Using deterministic fallback.");
     } finally {
       setPlanLoading(false);
     }
@@ -216,6 +288,36 @@ export default function IssuesDashboard() {
       setTimeout(() => setCopyStatus("idle"), 2000);
     }
   };
+
+  const codexStatusMessage = useMemo(() => {
+    if (codexOAuthConnected === null) {
+      return "Checking Codex auth status...";
+    }
+
+    if (codexAuthMethod === "local_provider") {
+      return "Codex is configured for a local LLM provider.";
+    }
+
+    if (codexAuthMethod === "api_key") {
+      return codexOAuthConnected
+        ? "Codex API key auth is configured."
+        : "Codex API key auth is selected, but no API key is configured.";
+    }
+
+    if (codexAuthMethod === "auto") {
+      return codexOAuthConnected
+        ? "Codex auto auth mode is ready."
+        : "Codex auto auth mode is not ready.";
+    }
+
+    if (codexOAuthConnected) {
+      return "Codex OAuth is connected.";
+    }
+
+    return codexLoginCommand
+      ? `Codex OAuth is not connected. Run \`${codexLoginCommand}\` to sign in.`
+      : "Codex OAuth is not connected.";
+  }, [codexOAuthConnected, codexAuthMethod, codexLoginCommand]);
 
   return (
     <div className="card">
@@ -330,6 +432,26 @@ export default function IssuesDashboard() {
                 />
               </div>
 
+              <div className="status-inline">
+                {codexStatusMessage}
+              </div>
+
+              {codexProvider && (
+                <div className="status-inline">
+                  Provider: {codexProvider}
+                </div>
+              )}
+
+              {codexAuthDetails && (
+                <div className="status-inline">
+                  Status: {codexAuthDetails}
+                </div>
+              )}
+
+              <div className="status-inline">
+                Live generation runs through the Codex SDK with structured JSON output.
+              </div>
+
               {planError && <ErrorBanner message={planError} />}
 
               {!planText && (
@@ -342,6 +464,8 @@ export default function IssuesDashboard() {
 
               {planText && (
                 <div>
+                  {planSource && <div className="status-inline">Generated by: {planSource}</div>}
+                  {planWarning && <div className="status-inline">{planWarning}</div>}
                   <div className="form-field">
                     <label htmlFor="planOutput">Generated Plan</label>
                     <div className="plan-output-wrap">

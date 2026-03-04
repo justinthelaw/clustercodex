@@ -36,6 +36,29 @@ export type CodexPlan = {
   recommendations: string[];
 };
 
+export type PlanProvider = "codex" | "local";
+
+export type PlanGenerationResponse = {
+  plan: CodexPlan;
+  provider: PlanProvider;
+  model: string;
+  warning?: string;
+};
+
+export type CodexAuthMethod =
+  | "chatgpt_oauth"
+  | "api_key"
+  | "auto"
+  | "local_provider";
+
+export type CodexAuthStatus = {
+  authenticated: boolean;
+  method: CodexAuthMethod;
+  provider: string;
+  loginCommand?: string;
+  details: string;
+};
+
 export type ResourceKind =
   | "Node"
   | "Deployment"

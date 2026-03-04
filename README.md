@@ -4,42 +4,39 @@
 
 ## The Problem
 
-Kubernetes troubleshooting is still high-friction. When workloads fail, teams often bounce between
-`kubectl`, events, logs, and tribal knowledge to diagnose and recover.
+Kubernetes troubleshooting is still high-friction. When workloads fail, teams often bounce between `kubectl`, events, logs, and tribal knowledge to diagnose and recover.
 
 ## The Solution
 
-Cluster Codex is a single Next.js application that runs locally against your existing cluster access.
-There is:
+Cluster Codex is a single Next.js application that runs locally against your existing cluster access. This results in:
 
 - No separate backend service to deploy
-- No app-level authentication
-- No API tokens stored by this app
+- Codex auth/provider mode is fully environment-driven via `.env`
 
-The app assumes you already have a valid `kubeconfig` and permissions. Kubernetes access is handled
-inside the app using [`@kubernetes/client-node`](https://github.com/kubernetes-client/javascript),
-so your own kubeconfig context and RBAC remain the source of truth.
+The app assumes you already have a valid `kubeconfig` and permissions. Kubernetes access is handled inside the app using [`@kubernetes/client-node`](https://github.com/kubernetes-client/javascript), so your own kubeconfig context and RBAC remain the source of truth.
 
 ## How It Works
 
 ```mermaid
 graph LR
     User[Developer]
-    UI[Cluster Codex UI]
-    InApp[In-App API Routes\nNext.js Node Runtime]
+    UI[Cluster Codex]
+    Codex[Codex SDK]
     Cluster[Kubernetes API]
     K8sGPT[K8sGPT Result CRDs]
+    Resources[Kubernetes Resources]
 
-    User --> UI
-    UI --> InApp
-    InApp --> Cluster
-    Cluster --> K8sGPT
+    User <--> UI
+    UI <--> Codex
+    Cluster --> UI
+    K8sGPT --> Cluster
+    Resources --> Cluster
 ```
 
 1. Start your cluster and ensure K8sGPT is producing `Result` CRDs.
 2. Run Cluster Codex.
 3. The app reads cluster state using your kubeconfig.
-4. Use the UI to inspect issues/resources and generate local remediation plans.
+4. Use the UI to inspect issues/resources and generate Codex remediation plans.
 
 ## Features
 
@@ -49,11 +46,13 @@ graph LR
 - Shows affected kind, namespace, name, severity, and detection time.
 - Supports dismiss/restore with local browser storage.
 
-### Local Plan Generation
+### Live Codex Plan Generation
 
-- Generates deterministic troubleshooting plans in the browser.
-- Includes quick-fix steps, validation checks, fallback guidance, and longer-term recommendations.
-- No external LLM dependency.
+- Uses `@openai/codex-sdk` with structured JSON schema output for consistent plan shape.
+- Generates comprehensive root-cause analysis, mitigation steps, validation checks, and rollback guidance.
+- Falls back to deterministic local planning if Codex is unavailable.
+- Supports auth modes via env (`chatgpt`, `api`, `auto`).
+- Supports local providers (for example Ollama or llama-server) via env configuration.
 
 ### Resource Explorer
 
@@ -66,13 +65,14 @@ Read-only cluster inventory across common resource kinds:
 
 ## Technology Stack
 
-| Technology | Purpose |
-| --- | --- |
-| [Next.js](https://nextjs.org) + [React](https://react.dev) | Frontend UI + in-app route handlers |
-| [Kubernetes Client JavaScript](https://github.com/kubernetes-client/javascript) | Kubernetes API access via kubeconfig |
-| [K8sGPT Operator](https://docs.k8sgpt.ai/getting-started/in-cluster-operator/) | In-cluster issue detection |
-| [K3d](https://k3d.io/stable) | Local Kubernetes cluster |
-| [Playwright](https://playwright.dev) | E2E testing |
+| Technology                                                                      | Purpose                                              |
+| ------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| [Next.js](https://nextjs.org) + [React](https://react.dev)                      | Frontend UI + in-app route handlers                  |
+| [Kubernetes Client JavaScript](https://github.com/kubernetes-client/javascript) | Kubernetes API access via kubeconfig                 |
+| [Codex SDK](https://developers.openai.com/codex/sdk)                            | Live cluster issue analysis and remediation planning |
+| [K8sGPT Operator](https://docs.k8sgpt.ai/getting-started/in-cluster-operator/)  | In-cluster issue detection                           |
+| [K3d](https://k3d.io/stable)                                                    | Local Kubernetes cluster                             |
+| [Playwright](https://playwright.dev)                                            | E2E testing                                          |
 
 ## Quick Start
 
@@ -84,6 +84,9 @@ cd clustercodex
 npm install
 cp .env.example .env.local
 
+# `.env.example` sets auth mode to ChatGPT OAuth. Sign in once:
+npx codex login --device-auth
+
 # Terminal 1: create local infra (k3d + K8sGPT + sample workloads)
 npm run infra:start
 
@@ -94,6 +97,44 @@ npm run dev
 ```
 
 See [DEVELOPMENT.md](DEVELOPMENT.md) for the full workflow.
+
+## Codex Runtime Configuration
+
+Cluster Codex reads Codex auth/provider behavior from environment variables.
+There are no code-level defaults for Codex runtime envs; copy `.env.example` and edit values:
+
+```bash
+# Provided in `.env.example`
+CODEX_MODEL=gpt-5.3-codex
+CODEX_AUTH_MODE=chatgpt
+
+# API key mode
+CODEX_AUTH_MODE=api
+CODEX_API_KEY=sk-...
+
+# Auto mode (use API key if present, otherwise OAuth)
+CODEX_AUTH_MODE=auto
+```
+
+Local provider examples:
+
+```bash
+# Ollama
+CODEX_LOCAL_PROVIDER=ollama
+CODEX_LOCAL_BASE_URL=http://localhost:11434/v1
+CODEX_LOCAL_PROVIDER_ID=ollama
+CODEX_LOCAL_PROVIDER_NAME=Ollama
+CODEX_LOCAL_ENV_KEY=OPENAI_API_KEY
+CODEX_MODEL=<your-local-model-name>
+
+# llama-server (llama.cpp)
+CODEX_LOCAL_PROVIDER=llama-server
+CODEX_LOCAL_BASE_URL=http://localhost:8080/v1
+CODEX_LOCAL_PROVIDER_ID=llama_server
+CODEX_LOCAL_PROVIDER_NAME=llama-server
+CODEX_LOCAL_ENV_KEY=OPENAI_API_KEY
+CODEX_MODEL=<your-local-model-name>
+```
 
 ## Project Structure
 
