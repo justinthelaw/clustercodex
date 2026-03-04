@@ -12,6 +12,7 @@
     "infra:start": "./scripts/start-infra.sh",
     "infra:stop": "./scripts/stop-infra.sh",
     "test:e2e": "npm run infra:stop && npm run infra:start && ./scripts/test-e2e.sh",
+    "clean": "rm -rf out test-results playwright-report .next test-results.json node_modules ./**/node_modules",
     "postinstall": "playwright install --with-deps"
   },
   "devDependencies": {
