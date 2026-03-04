@@ -9,24 +9,6 @@ updates:
         patterns:
           - "*"
 
-  - package-ecosystem: npm
-    directory: "/backend"
-    schedule:
-      interval: weekly
-    groups:
-      backend-npm:
-        patterns:
-          - "*"
-
-  - package-ecosystem: npm
-    directory: "/frontend"
-    schedule:
-      interval: weekly
-    groups:
-      frontend-npm:
-        patterns:
-          - "*"
-
   - package-ecosystem: github-actions
     directory: "/"
     schedule:

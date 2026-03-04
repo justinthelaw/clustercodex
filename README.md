@@ -1,119 +1,77 @@
 # Cluster Codex
 
-**Your personal platform engineer, without the Jira ticket.**
+**Your local-first Kubernetes troubleshooting workspace.**
 
 ## The Problem
 
-Kubernetes troubleshooting is painful. When pods crash, deployments fail, or resources misbehave, developers face:
-
-- **Context switching**: Jumping between `kubectl`, logs, events, and dashboards
-- **Tribal knowledge**: Solutions live in Slack threads, wikis, or someone's head
-- **Reactive firefighting**: Same issues recur because root causes aren't documented
-- **Slow resolution**: Finding the right fix takes hours of investigation
+Kubernetes troubleshooting is still high-friction. When workloads fail, teams often bounce between
+`kubectl`, events, logs, and tribal knowledge to diagnose and recover.
 
 ## The Solution
 
-Cluster Codex combines **automated issue detection** (via K8sGPT) with **LLM-powered Cluster Codex plans** to give developers actionable guidance in seconds.
+Cluster Codex is a single Next.js application that runs locally against your existing cluster access.
+There is:
 
-### Core Workflow
+- No separate backend service to deploy
+- No app-level authentication
+- No API tokens stored by this app
 
-1. **See** — Kubernetes issues detected automatically by K8sGPT
-2. **Understand** — AI-generated analysis explains what's wrong and why
-3. **Act** — Step-by-step Cluster Codex plan with `kubectl` commands
+The app assumes you already have a valid `kubeconfig` and permissions. Kubernetes access is handled
+inside the app using [`@kubernetes/client-node`](https://github.com/kubernetes-client/javascript),
+so your own kubeconfig context and RBAC remain the source of truth.
 
 ## How It Works
 
 ```mermaid
-graph BT
-    Cluster["Kubernetes Cluster"]
+graph LR
+    User[Developer]
+    UI[Cluster Codex UI]
+    InApp[In-App API Routes\nNext.js Node Runtime]
+    Cluster[Kubernetes API]
+    K8sGPT[K8sGPT Result CRDs]
 
-    subgraph ClusterCodex["Cluster Codex"]
-        K8sGPT["K8sGPT Operator"]
-        K8sClient["Kubernetes Client"]
-        LLM["OpenAI Codex"]
-        API["Express API"]
-        Landing["Landing Page (Issues)"]
-        Resources["Resource Tabs"]
-        Admin["Admin Portal"]
-
-        K8sGPT --> API
-        K8sClient --> API
-        LLM --> API
-
-        API --> Landing
-        API --> Resources
-        API --> Admin
-    end
-
+    User --> UI
+    UI --> InApp
+    InApp --> Cluster
     Cluster --> K8sGPT
-    Cluster --> K8sClient
 ```
 
-1. **K8sGPT Operator** runs in-cluster, detecting issues via Result CRDs
-2. **Backend API** fetches Result CRDs, enriching with resource/event context
-3. **LLM (Codex)** generates a Cluster Codex plan (action steps + analysis)
-4. **Frontend** displays issues and plans with user access filtering
+1. Start your cluster and ensure K8sGPT is producing `Result` CRDs.
+2. Run Cluster Codex.
+3. The app reads cluster state using your kubeconfig.
+4. Use the UI to inspect issues/resources and generate local remediation plans.
 
 ## Features
 
 ### Issues Dashboard
 
-View all detected Kubernetes issues:
+- Reads K8sGPT `Result` CRDs directly from Kubernetes APIs.
+- Shows affected kind, namespace, name, severity, and detection time.
+- Supports dismiss/restore with local browser storage.
 
-- Issue title, severity, affected resource, namespace
-- K8sGPT-provided context and analysis
-- One-click button to generate a combined Codex plan
+### Local Plan Generation
 
-### Short-term Plans
+- Generates deterministic troubleshooting plans in the browser.
+- Includes quick-fix steps, validation checks, fallback guidance, and longer-term recommendations.
+- No external LLM dependency.
 
-For immediate fixes that get things working **now**:
+### Resource Explorer
 
-- Add optional context ("We just deployed v2", "This started after scaling")
-- Receive structured, actionable steps with `kubectl` commands
-- Each step includes impact assessment, validation, and rollback instructions
+Read-only cluster inventory across common resource kinds:
 
-### Long-term Resolution
-
-For preventing the same issue from recurring:
-
-- Root cause hypotheses based on cluster state
-- Evidence gathering steps to confirm diagnosis
-- Recommendations for code, config, or infrastructure changes
-
-### Resource Visibility
-
-Read-only view of cluster resources:
-
-- **Pods**: Status, restarts, age, node placement
-- **Deployments**: Replicas, strategy, conditions
-- **Events**: Recent cluster activity
-
-### Admin Portal
-
-Central access control management:
-
-- Namespace allow-lists per user
-- Resource kind allow-lists per user
-- Rate limits for plan generation
+- Pods, Deployments, DaemonSets, StatefulSets, ReplicaSets
+- Jobs, CronJobs, Services, Ingresses, Namespaces
+- ConfigMaps, Secrets, ServiceAccounts
+- PersistentVolumes, PersistentVolumeClaims, CRDs, Nodes, Events
 
 ## Technology Stack
 
-### Core (MVP)
-
-| Technology                                                                     | Purpose                    |
-| ------------------------------------------------------------------------------ | -------------------------- |
-| [React](https://react.dev) + [Vite](https://vitejs.dev)                        | Frontend UI                |
-| [Express](https://expressjs.com)                                               | Backend API                |
-| Local JWT (in-memory)                                                          | Auth (demo only)           |
+| Technology | Purpose |
+| --- | --- |
+| [Next.js](https://nextjs.org) + [React](https://react.dev) | Frontend UI + in-app route handlers |
+| [Kubernetes Client JavaScript](https://github.com/kubernetes-client/javascript) | Kubernetes API access via kubeconfig |
 | [K8sGPT Operator](https://docs.k8sgpt.ai/getting-started/in-cluster-operator/) | In-cluster issue detection |
-| [K3d](https://k3d.io/stable)                                                   | Local Kubernetes cluster   |
-| [OpenAI SDK](https://github.com/openai/openai-node)                            | Agentic AI solution        |
-| [Kubernetes Client Node](https://github.com/kubernetes-client/javascript)      | Direct K8s API access      |
-
-### Post-MVP
-
-| Technology                           | Purpose     |
-| ------------------------------------ | ----------- |
+| [K3d](https://k3d.io/stable) | Local Kubernetes cluster |
 | [Playwright](https://playwright.dev) | E2E testing |
 
 ## Quick Start
@@ -121,59 +79,54 @@ Central access control management:
 ```bash
 # Prerequisites: Node.js 20+, Docker Engine, K3d, Helm, kubectl
 
-# Clone and setup
 git clone https://github.com/justinthelaw/clustercodex.git
 cd clustercodex
 npm install
+cp .env.example .env.local
 
-# Setup environment
-cp backend/.env.example backend/.env
-cp frontend/.env.example frontend.env
+# Terminal 1: create local infra (k3d + K8sGPT + sample workloads)
+npm run infra:start
 
-# Start development (separate terminals)
-npm run infra:start     # K3d cluster
-npm run dev             # Frontend + Backend
+# Terminal 2: run app
+npm run dev
 
-# Open http://localhost:5173
-# Login: admin@clustercodex.local / admin123!
+# Open http://localhost:3000
 ```
 
-See [DEVELOPMENT.md](DEVELOPMENT.md) for detailed setup and development workflow.
+See [DEVELOPMENT.md](DEVELOPMENT.md) for the full workflow.
 
 ## Project Structure
 
 ```text
 clustercodex/
-├── frontend/          # React + Vite application
-├── backend/           # Express API server
+├── src/               # Next.js application source (root frontend + in-app APIs)
 ├── tests/             # Playwright end-to-end tests
-├── scripts/           # Infrastructure orchestration
-├── charts/            # Helm charts (K8sGPT Operator)
+├── scripts/           # Infrastructure orchestration and E2E runner
+├── charts/            # Helm/YAML cluster assets
 ├── DEVELOPMENT.md     # Local development guide
 └── README.md          # This file
 ```
 
-## Future Roadmap
+## Validation
 
-- **Agentic Execution**: Apply quick-fix steps using coding agents, with user approval
-- **Ticket Integration**: Create upstream issues from recommendations
-- **Storage and Auth**: True auth and data persistence using a durable solution (e.g., Supabase)
-- **Enhanced RBAC**: Per-action permissions beyond namespace/kind filtering
-- **More Resource Support**: View and manage all custom and standard Kubernetes resources
-- **Multi-cluster Support**: Manage multiple clusters from one interface
+```bash
+npm run flight-check
+```
+
+`flight-check` runs clean, lint, build, and E2E test workflows with bootstrapping.
 
 ## Contributing
 
-See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for contribution workflow and pull request expectations.
+See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md).
 
 ## Security
 
-See [docs/SECURITY.md](docs/SECURITY.md) for supported versions and vulnerability reporting.
+See [docs/SECURITY.md](docs/SECURITY.md).
 
 ## Support
 
-See [docs/SUPPORT.md](docs/SUPPORT.md) for bug, feature, and support routing.
+See [docs/SUPPORT.md](docs/SUPPORT.md).
 
 ## License
 
-This repository currently has no dedicated license file. Add one before broad public reuse.
+This repository currently has no dedicated license file. Add one before broad reuse.

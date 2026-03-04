@@ -1,22 +1,31 @@
 {
   "name": "clustercodex",
   "private": true,
-  "workspaces": [
-    "frontend",
-    "backend"
-  ],
   "scripts": {
-    "dev": "concurrently \"npm:dev:backend\" \"npm:dev:frontend\"",
-    "dev:backend": "npm --prefix backend run dev",
-    "dev:frontend": "npm --prefix frontend run dev",
+    "dev": "next dev",
+    "build": "next build --experimental-build-mode compile",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "lint": "PRE_COMMIT_HOME=/tmp/pre-commit-cache pre-commit run --all-files --hook-stage pre-commit",
+    "test": "npm run test:e2e",
     "infra:start": "./scripts/start-infra.sh",
     "infra:stop": "./scripts/stop-infra.sh",
     "test:e2e": "npm run infra:stop && npm run infra:start && ./scripts/test-e2e.sh",
-    "clean": "rm -rf out test-results playwright-report .next test-results.json node_modules ./**/node_modules",
+    "clean": "./scripts/clean.sh",
+    "flight-check": "npm run clean && npm run lint && npm run build && npm run test",
     "postinstall": "playwright install --with-deps"
+  },
+  "dependencies": {
+    "@kubernetes/client-node": "^1.4.0",
+    "next": "^14.2.30",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@playwright/test": "^1.51.0",
-    "concurrently": "^8.2.2"
+    "@types/node": "^20.14.9",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "typescript": "^5.5.4"
   }
 }

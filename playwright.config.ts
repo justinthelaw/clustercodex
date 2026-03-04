@@ -8,7 +8,7 @@ export default defineConfig({
   },
   fullyParallel: true,
   use: {
-    baseURL: "http://localhost:5173",
+    baseURL: "http://localhost:3000",
     permissions: ["clipboard-read", "clipboard-write"],
     trace: "retain-on-failure",
     screenshot: "only-on-failure",

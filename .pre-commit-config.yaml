@@ -87,18 +87,10 @@ repos:
 
   - repo: local
     hooks:
-      - id: backend-build
-        name: Backend Build
-        language: system
-        entry: npm --prefix backend run build
-        files: ^backend/.*\.(ts|tsx|js|json)$
-        pass_filenames: false
-        stages: [pre-push]
-
-      - id: frontend-build
+      - id: app-build
         name: Frontend Build
         language: system
-        entry: npm --prefix frontend run build
-        files: ^frontend/.*\.(ts|tsx|js|jsx|json|css)$
+        entry: npm run build
+        files: ^(src/.*\.(ts|tsx|js|jsx|json|css)|package(-lock)?\.json|next\.config\.mjs|tsconfig\.json)$
         pass_filenames: false
         stages: [pre-push]
