@@ -82,15 +82,11 @@ Read-only cluster inventory across common resource kinds:
 git clone https://github.com/justinthelaw/clustercodex.git
 cd clustercodex
 npm install
-cp .env.example .env.local
 
 # `.env.example` sets auth mode to ChatGPT OAuth. Sign in once:
 npx codex login --device-auth
 
-# Terminal 1: create local infra (k3d + K8sGPT + sample workloads)
-npm run infra:start
-
-# Terminal 2: run app
+# Setup example cluster and run app
 npm run dev
 
 # Open http://localhost:3000

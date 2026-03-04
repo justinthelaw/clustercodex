@@ -16,7 +16,6 @@
 git clone https://github.com/justinthelaw/clustercodex.git
 cd clustercodex
 npm install
-cp .env.example .env.local
 
 # Sign in for live Codex planning (OAuth with ChatGPT)
 npx codex login --device-auth
@@ -25,10 +24,7 @@ npx codex login --device-auth
 ### Daily Development
 
 ```bash
-# Terminal 1: Start infrastructure
-npm run infra:start
-
-# Terminal 2: Start app
+# Setup example cluster and run app
 npm run dev
 ```
 
@@ -65,18 +61,15 @@ Open <http://localhost:3000>.
 
 ### Useful Commands
 
+Cleans all dependencies, testing, example cluster and `.env` artifacts:
+
 ```bash
-# Stop all infrastructure
-npm run infra:stop
+npm run clean
 ```
 
 ### Running Tests
 
 ```bash
-# Terminal 1
-npm run infra:start
-
-# Terminal 2
 npm run test
 ```
 
