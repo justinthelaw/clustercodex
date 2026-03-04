@@ -6,7 +6,7 @@ metadata:
 spec:
   ai:
     enabled: false
-    model: gpt-5.2-codex
+    model: gpt-5.3-codex
     backend: openai
   noCache: false
   repository: ghcr.io/k8sgpt-ai/k8sgpt
