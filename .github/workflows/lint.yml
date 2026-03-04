@@ -66,8 +66,5 @@ jobs:
           sudo mv k3d /usr/local/bin/k3d
           k3d version
 
-      - name: Install dependencies
-        run: npm install
-
       - name: Run Flight Check
         run: npm run flight-check
