@@ -1,9 +1,14 @@
+/**
+ * Produces deterministic remediation plans when live model generation is unavailable.
+ */
 import type { CodexPlan, Issue } from "@/lib/types";
 
+// Builds namespace-scoped command suffixes for kubectl examples.
 function commandScope(issue: Issue): string {
   return issue.namespace ? `-n ${issue.namespace}` : "";
 }
 
+// Returns a generic safe plan when no specialized issue fingerprint is matched.
 function genericPlan(issue: Issue): CodexPlan {
   const scope = commandScope(issue);
   return {
@@ -60,6 +65,7 @@ function genericPlan(issue: Issue): CodexPlan {
   };
 }
 
+// Selects a rule-based plan template based on issue signals and user context.
 export function generateLocalPlan(issue: Issue, userContext: string): CodexPlan {
   const fingerprint = `${issue.title} ${issue.context?.errorText || ""} ${userContext}`.toLowerCase();
   const scope = commandScope(issue);

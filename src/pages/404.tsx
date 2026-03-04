@@ -1,3 +1,7 @@
+/**
+ * Renders a simple fallback page for unmatched application routes.
+ */
+// Shows a static not-found message for unknown paths.
 export default function NotFoundPage() {
   return (
     <main style={{ padding: "40px" }}>

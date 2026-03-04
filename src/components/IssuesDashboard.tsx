@@ -1,12 +1,16 @@
 "use client";
 
+/**
+ * Presents issue triage workflows, plan generation, and operator context management.
+ */
 import { useEffect, useMemo, useRef, useState } from "react";
 import ErrorBanner from "@/components/ErrorBanner";
-import { loadDismissedIssueIds, saveDismissedIssueIds } from "@/lib/dismissed-issues";
-import { generatePlan, getCodexAuthStatus, listIssues } from "@/lib/k8s-client";
-import { generateLocalPlan } from "@/lib/plan-generator";
+import { loadDismissedIssueIds, saveDismissedIssueIds } from "@/lib/dismissedIssues";
+import { generatePlan, getCodexAuthStatus, listIssues } from "@/lib/k8sClient";
+import { generateLocalPlan } from "@/lib/planGenerator";
 import type { CodexAuthStatus, CodexPlan, Issue } from "@/lib/types";
 
+// Renders the primary issue dashboard and associated planning modal.
 export default function IssuesDashboard() {
   const e2eDeterministicFallbackEnabled = process.env.NEXT_PUBLIC_CLUSTERCODEX_E2E_MODE === "1";
   const [issues, setIssues] = useState<Issue[]>([]);
@@ -30,9 +34,9 @@ export default function IssuesDashboard() {
   const [codexAuthMethod, setCodexAuthMethod] = useState<CodexAuthStatus["method"] | null>(null);
   const [codexProvider, setCodexProvider] = useState("");
   const [codexAuthDetails, setCodexAuthDetails] = useState("");
-  const [codexLoginCommand, setCodexLoginCommand] = useState<string | null>(null);
   const planOutputRef = useRef<HTMLTextAreaElement | null>(null);
 
+  // Loads issues and applies persisted dismiss-state filtering.
   const loadData = async () => {
     setLoading(true);
     setError("");
@@ -52,28 +56,29 @@ export default function IssuesDashboard() {
     }
   };
 
+  // Performs the initial issue load on first render.
   useEffect(() => {
     void loadData();
   }, []);
 
+  // Refreshes auth readiness details when the planning modal opens.
   useEffect(() => {
     if (!planOpen || !selectedIssue) {
       setCodexOAuthConnected(null);
       setCodexAuthMethod(null);
       setCodexProvider("");
       setCodexAuthDetails("");
-      setCodexLoginCommand(null);
       return;
     }
 
     let cancelled = false;
 
+    // Fetches auth details while guarding against stale updates.
     const loadCodexAuthStatus = async () => {
       setCodexOAuthConnected(null);
       setCodexAuthMethod(null);
       setCodexProvider("");
       setCodexAuthDetails("");
-      setCodexLoginCommand(null);
       try {
         const status = await getCodexAuthStatus();
         if (cancelled) {
@@ -83,7 +88,6 @@ export default function IssuesDashboard() {
         setCodexAuthMethod(status.method);
         setCodexProvider(status.provider);
         setCodexAuthDetails(status.details);
-        setCodexLoginCommand(status.loginCommand || null);
       } catch {
         if (cancelled) {
           return;
@@ -92,7 +96,6 @@ export default function IssuesDashboard() {
         setCodexAuthMethod(null);
         setCodexProvider("");
         setCodexAuthDetails("Unable to confirm Codex OAuth status.");
-        setCodexLoginCommand(null);
       }
     };
 
@@ -103,6 +106,7 @@ export default function IssuesDashboard() {
     };
   }, [planOpen, selectedIssue]);
 
+  // Resets transient modal state and closes the planning view.
   const closeModal = () => {
     setSelectedIssue(null);
     setPlanOpen(false);
@@ -117,9 +121,9 @@ export default function IssuesDashboard() {
     setCodexAuthMethod(null);
     setCodexProvider("");
     setCodexAuthDetails("");
-    setCodexLoginCommand(null);
   };
 
+  // Moves an issue from active to dismissed and persists that choice.
   const handleDismiss = (issueId: string) => {
     setIssues((previous) => {
       const issue = previous.find((item) => item.id === issueId);
@@ -142,6 +146,7 @@ export default function IssuesDashboard() {
     });
   };
 
+  // Restores a dismissed issue back into the active list.
   const handleRestore = (issueId: string) => {
     setDismissedIssues((previous) => {
       const issue = previous.find((item) => item.id === issueId);
@@ -164,6 +169,7 @@ export default function IssuesDashboard() {
     });
   };
 
+  // Opens plan generation and seeds the context editor with captured signals.
   const openModal = (issue: Issue) => {
     setSelectedIssue(issue);
     setPlanOpen(true);
@@ -198,6 +204,7 @@ export default function IssuesDashboard() {
     setContextSnapshot("");
   };
 
+  // Requests a live plan and falls back locally when deterministic E2E mode is enabled.
   const submitPlan = async () => {
     if (!selectedIssue) {
       return;
@@ -232,6 +239,7 @@ export default function IssuesDashboard() {
     }
   };
 
+  // Formats the generated plan into readable plain text for display and copy actions.
   const planText = useMemo(() => {
     if (!planResult) {
       return "";
@@ -269,6 +277,7 @@ export default function IssuesDashboard() {
     return lines.join("\n");
   }, [planResult]);
 
+  // Tracks whether the read-only output has a visible scrollbar for copy button positioning.
   useEffect(() => {
     const node = planOutputRef.current;
     if (!node) {
@@ -279,6 +288,7 @@ export default function IssuesDashboard() {
     setPlanHasScroll(node.scrollHeight > node.clientHeight + 1);
   }, [planText]);
 
+  // Copies generated plan output to the clipboard with transient success/error feedback.
   const handleCopyPlan = async () => {
     if (!planText) {
       return;
@@ -295,7 +305,12 @@ export default function IssuesDashboard() {
     }
   };
 
+  // Derives a concise auth status message from current auth mode and readiness signals.
   const codexStatusMessage = useMemo(() => {
+    if (codexAuthDetails.toLowerCase().includes("unable to locate codex cli binaries")) {
+      return "Codex runtime is unavailable because local CLI binaries are missing.";
+    }
+
     if (codexOAuthConnected === null) {
       return "Checking Codex auth status...";
     }
@@ -320,10 +335,8 @@ export default function IssuesDashboard() {
       return "Codex OAuth is connected.";
     }
 
-    return codexLoginCommand
-      ? `Codex OAuth is not connected. Run \`${codexLoginCommand}\` to sign in.`
-      : "Codex OAuth is not connected.";
-  }, [codexOAuthConnected, codexAuthMethod, codexLoginCommand]);
+    return "Codex OAuth is not connected.";
+  }, [codexAuthDetails, codexOAuthConnected, codexAuthMethod]);
 
   return (
     <div className="card">

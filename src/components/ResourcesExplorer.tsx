@@ -1,8 +1,11 @@
 "use client";
 
+/**
+ * Provides tabbed browsing of common Kubernetes resources with kind-specific tables.
+ */
 import { useEffect, useState } from "react";
 import ErrorBanner from "@/components/ErrorBanner";
-import { listResources } from "@/lib/k8s-client";
+import { listResources } from "@/lib/k8sClient";
 import type { ResourceItem, ResourceKind } from "@/lib/types";
 
 type Tab = {
@@ -31,6 +34,7 @@ const tabs: Tab[] = [
   { label: "Events", kind: "Event" }
 ];
 
+// Normalizes mixed-value resource fields into display-safe strings.
 function getValue(item: ResourceItem, key: string): string {
   const value = item[key];
   if (value === null || value === undefined) {
@@ -39,15 +43,18 @@ function getValue(item: ResourceItem, key: string): string {
   return String(value);
 }
 
+// Renders resource data with tab-based kind selection and table formatting.
 export default function ResourcesExplorer() {
   const [activeKind, setActiveKind] = useState<ResourceKind>("Node");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [items, setItems] = useState<ResourceItem[]>([]);
 
+  // Reloads resources whenever the selected kind changes.
   useEffect(() => {
     let mounted = true;
 
+    // Fetches current resource data and guards against unmounted updates.
     const load = async () => {
       setLoading(true);
       setError("");
@@ -79,6 +86,7 @@ export default function ResourcesExplorer() {
     };
   }, [activeKind]);
 
+  // Chooses the appropriate table layout for the selected resource kind.
   const renderTable = () => {
     if (loading) {
       return <div>Loading {activeKind.toLowerCase()}...</div>;

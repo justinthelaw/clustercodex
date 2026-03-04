@@ -1,3 +1,6 @@
+/**
+ * Defines shared domain types used by frontend components and server routes.
+ */
 export type Issue = {
   id: string;
   title: string;
@@ -55,7 +58,6 @@ export type CodexAuthStatus = {
   authenticated: boolean;
   method: CodexAuthMethod;
   provider: string;
-  loginCommand?: string;
   details: string;
 };
 

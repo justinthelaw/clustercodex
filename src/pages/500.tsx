@@ -1,3 +1,7 @@
+/**
+ * Renders a static fallback page for unexpected rendering failures.
+ */
+// Shows a generic error message when page rendering fails.
 export default function ErrorPage() {
   return (
     <main style={{ padding: "40px" }}>

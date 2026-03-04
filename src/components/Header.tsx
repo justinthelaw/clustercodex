@@ -1,12 +1,17 @@
 "use client";
 
+/**
+ * Renders global navigation and brand context for top-level application routes.
+ */
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+// Chooses the correct nav link styling for the current route.
 function navClass(isActive: boolean): string {
   return isActive ? "nav-link active" : "nav-link";
 }
 
+// Displays the persistent application header and primary navigation links.
 export default function Header() {
   const pathname = usePathname();
 

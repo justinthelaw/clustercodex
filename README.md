@@ -82,6 +82,8 @@ Read-only cluster inventory across common resource kinds:
 git clone https://github.com/justinthelaw/clustercodex.git
 cd clustercodex
 npm install
+# If your npm config omits optional deps, run:
+npm install --include=optional
 
 # `.env.example` sets auth mode to ChatGPT OAuth. Sign in once:
 npx codex login --device-auth
@@ -93,6 +95,25 @@ npm run dev
 ```
 
 See [DEVELOPMENT.md](DEVELOPMENT.md) for the full workflow.
+
+### Troubleshooting: Missing Codex CLI Binaries
+
+If plan generation fails with:
+`Unable to locate Codex CLI binaries. Ensure @openai/codex is installed with optional dependencies.`
+
+reinstall optional dependencies and retry:
+
+```bash
+npm install --include=optional
+# or
+npm install @openai/codex --include=optional
+```
+
+If needed, enable optional dependencies for this project:
+
+```bash
+npm config set include optional
+```
 
 ## Codex Runtime Configuration
 

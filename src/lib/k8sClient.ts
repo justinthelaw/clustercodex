@@ -1,3 +1,6 @@
+/**
+ * Provides browser-side API helpers for querying cluster data and requesting plans.
+ */
 import type {
   CodexAuthStatus,
   Issue,
@@ -6,6 +9,7 @@ import type {
   ResourceKind
 } from "@/lib/types";
 
+// Executes GET requests and surfaces structured API errors when available.
 async function getJson<T>(path: string): Promise<T> {
   const response = await fetch(path, {
     method: "GET",
@@ -29,6 +33,7 @@ async function getJson<T>(path: string): Promise<T> {
   return (await response.json()) as T;
 }
 
+// Executes POST requests with JSON payloads and consistent error handling.
 async function postJson<T>(path: string, body: unknown): Promise<T> {
   const response = await fetch(path, {
     method: "POST",
@@ -56,15 +61,18 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
   return (await response.json()) as T;
 }
 
+// Fetches the current cluster issue list.
 export async function listIssues(): Promise<Issue[]> {
   return getJson<Issue[]>("/api/issues");
 }
 
+// Fetches resources for the selected Kubernetes kind.
 export async function listResources(kind: ResourceKind): Promise<ResourceItem[]> {
   const query = new URLSearchParams({ kind }).toString();
   return getJson<ResourceItem[]>(`/api/resources?${query}`);
 }
 
+// Requests a generated remediation plan for a specific issue and context.
 export async function generatePlan(
   issue: Issue,
   contextSnapshot: string,
@@ -77,6 +85,7 @@ export async function generatePlan(
   });
 }
 
+// Loads current Codex authentication readiness details for UI display.
 export async function getCodexAuthStatus(): Promise<CodexAuthStatus> {
   return getJson<CodexAuthStatus>("/api/codex/auth");
 }

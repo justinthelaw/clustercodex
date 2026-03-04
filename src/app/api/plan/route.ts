@@ -1,10 +1,14 @@
+/**
+ * Handles remediation plan generation requests with auth checks and safe fallbacks.
+ */
 import { NextResponse } from "next/server";
-import { generateLocalPlan } from "@/lib/plan-generator";
+import { generateLocalPlan } from "@/lib/planGenerator";
+import { getCodexAuthStatus } from "@/lib/server/codex/authStatus";
 import {
   CodexAuthenticationError,
-  getCodexAuthStatus,
-  generateLiveCodexPlan
-} from "@/lib/server/codex-plan";
+  isMissingCodexCliBinariesError
+} from "@/lib/server/codex/errors";
+import { generateLiveCodexPlan } from "@/lib/server/codex/livePlan";
 import type { Issue, PlanGenerationResponse } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -21,10 +25,12 @@ type ApiErrorBody = {
   details: string;
 };
 
+// Guards object-shape checks for request payload parsing.
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+// Validates the minimum issue fields required for planning.
 function isIssue(value: unknown): value is Issue {
   if (!isRecord(value)) {
     return false;
@@ -41,10 +47,12 @@ function isIssue(value: unknown): value is Issue {
   );
 }
 
+// Merges captured cluster context with optional operator-provided context.
 function mergedContext(contextSnapshot: string | undefined, userContext: string | undefined): string {
   return [contextSnapshot?.trim(), userContext?.trim()].filter(Boolean).join("\n\n");
 }
 
+// Builds a deterministic fallback response when live generation is unavailable.
 function localFallback(issue: Issue, context: string, warning: string): PlanGenerationResponse {
   return {
     plan: generateLocalPlan(issue, context),
@@ -54,15 +62,18 @@ function localFallback(issue: Issue, context: string, warning: string): PlanGene
   };
 }
 
+// Flags E2E mode where fallback behavior is intentionally relaxed.
 function deterministicFallbackEnabled(): boolean {
   return process.env.CLUSTERCODEX_E2E_MODE === "1";
 }
 
+// Normalizes API error payload format across route failures.
 function errorResponse(status: number, error: string, details: string) {
   const body: ApiErrorBody = { error, details };
   return NextResponse.json(body, { status });
 }
 
+// Parses, validates, and generates a remediation plan for the requested issue.
 export async function POST(request: Request) {
   let body: PlanRequestBody;
   try {
@@ -91,10 +102,14 @@ export async function POST(request: Request) {
   const e2eMode = deterministicFallbackEnabled();
 
   if (!authStatus.authenticated) {
-    const loginHint = authStatus.loginCommand
-      ? ` Run \`${authStatus.loginCommand}\` to authenticate and regenerate.`
-      : "";
-    const details = `${authStatus.details}${loginHint}`;
+    const details = authStatus.details;
+    if (isMissingCodexCliBinariesError(details)) {
+      if (e2eMode) {
+        return NextResponse.json(localFallback(issue, context, details));
+      }
+      return errorResponse(503, "Codex runtime unavailable", details);
+    }
+
     if (e2eMode) {
       return NextResponse.json(localFallback(issue, context, details));
     }
@@ -113,10 +128,7 @@ export async function POST(request: Request) {
     const details = error instanceof Error ? error.message : "Unknown error";
 
     if (error instanceof CodexAuthenticationError) {
-      const loginHint = authStatus.loginCommand
-        ? ` Run \`${authStatus.loginCommand}\` to authenticate and regenerate.`
-        : "";
-      const authDetails = `${authStatus.details}${loginHint}`;
+      const authDetails = details || authStatus.details;
       if (e2eMode) {
         return NextResponse.json(
           localFallback(
@@ -133,6 +145,10 @@ export async function POST(request: Request) {
       return NextResponse.json(
         localFallback(issue, context, `Live Codex plan generation failed. Falling back to local planner. ${details}`)
       );
+    }
+
+    if (isMissingCodexCliBinariesError(details)) {
+      return errorResponse(503, "Codex runtime unavailable", details);
     }
 
     return errorResponse(502, "Live Codex plan generation failed", details);

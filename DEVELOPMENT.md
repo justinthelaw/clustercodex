@@ -16,9 +16,19 @@
 git clone https://github.com/justinthelaw/clustercodex.git
 cd clustercodex
 npm install
+# Ensure optional dependencies are available for Codex CLI binaries:
+npm install --include=optional
 
 # Sign in for live Codex planning (OAuth with ChatGPT)
 npx codex login --device-auth
+```
+
+If you see `Unable to locate Codex CLI binaries`, reinstall Codex CLI with optional deps:
+
+```bash
+npm install --include=optional
+# or
+npm install @openai/codex --include=optional
 ```
 
 ### Daily Development
@@ -78,3 +88,34 @@ For the full local CI-equivalent gate (clean + lint + build + E2E):
 ```bash
 npm run flight-check
 ```
+
+### Troubleshooting
+
+#### Codex OAuth
+
+If you see:
+`Unable to locate Codex CLI binaries. Ensure @openai/codex is installed with optional dependencies.`
+
+run the recovery flow:
+
+```bash
+cd ~/dev/clustercodex
+rm -rf node_modules
+npm install --include=optional
+
+# verify platform package is present
+npm ls @openai/codex @openai/codex-linux-x64
+node -e "console.log(require.resolve('@openai/codex-linux-x64/package.json'))"
+
+# then auth + run
+npx codex login --device-auth
+npm run dev
+```
+
+If it still fails, check for an environment override:
+
+```bash
+echo "$NPM_CONFIG_OMIT"
+```
+
+If output includes `optional`, unset it for your shell/session before reinstalling.
