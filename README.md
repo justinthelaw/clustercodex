@@ -100,15 +100,15 @@ Central access control management:
 
 ### Core (MVP)
 
-| Technology                                                                     | Purpose                        |
-| ------------------------------------------------------------------------------ | ------------------------------ |
-| [React](https://react.dev) + [Vite](https://vitejs.dev)                        | Frontend UI                    |
-| [Express](https://expressjs.com)                                               | Backend API                    |
-| Local JWT (in-memory)                                                          | Auth (demo only)               |
-| [K8sGPT Operator](https://docs.k8sgpt.ai/getting-started/in-cluster-operator/) | In-cluster issue detection     |
-| [K3d](https://k3d.io/stable)                                                   | Local Kubernetes cluster       |
-| [OpenAI SDK](https://github.com/openai/openai-node)                            | LLM client (mock mode for MVP) |
-| [Kubernetes Client Node](https://github.com/kubernetes-client/javascript)      | Direct K8s API access          |
+| Technology                                                                     | Purpose                    |
+| ------------------------------------------------------------------------------ | -------------------------- |
+| [React](https://react.dev) + [Vite](https://vitejs.dev)                        | Frontend UI                |
+| [Express](https://expressjs.com)                                               | Backend API                |
+| Local JWT (in-memory)                                                          | Auth (demo only)           |
+| [K8sGPT Operator](https://docs.k8sgpt.ai/getting-started/in-cluster-operator/) | In-cluster issue detection |
+| [K3d](https://k3d.io/stable)                                                   | Local Kubernetes cluster   |
+| [OpenAI SDK](https://github.com/openai/openai-node)                            | Agentic AI solution        |
+| [Kubernetes Client Node](https://github.com/kubernetes-client/javascript)      | Direct K8s API access      |
 
 ### Post-MVP
 

@@ -66,6 +66,9 @@ jobs:
         run: npm ci
 
       - name: Run E2E tests
+        env:
+          CODEX_MOCK_MODE: "true"
+          JWT_SECRET: ci-e2e-jwt-secret
         run: npm run test:e2e
 
       - name: Upload test logs and reports
