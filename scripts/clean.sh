@@ -17,6 +17,7 @@ paths=(
   "blob-report"
   "playwright/.cache"
   ".cache"
+  "node_modules"
 )
 
 for path in "${paths[@]}"; do
