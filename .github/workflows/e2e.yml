@@ -1,0 +1,82 @@
+name: E2E Tests
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Node
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install kubectl
+        shell: bash
+        run: |
+          set -euo pipefail
+          KUBECTL_VERSION="v1.34.1"
+          curl -fsSL -o kubectl "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/kubectl
+          kubectl version --client
+
+      - name: Install Helm
+        shell: bash
+        run: |
+          set -euo pipefail
+          HELM_VERSION="v3.19.0"
+          curl -fsSL "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" -o helm.tar.gz
+          tar -xzf helm.tar.gz
+          sudo mv linux-amd64/helm /usr/local/bin/helm
+          rm -rf linux-amd64 helm.tar.gz
+          helm version
+
+      - name: Install k3d
+        shell: bash
+        run: |
+          set -euo pipefail
+          K3D_VERSION="v5.8.3"
+          curl -fsSL "https://github.com/k3d-io/k3d/releases/download/${K3D_VERSION}/k3d-linux-amd64" -o k3d
+          chmod +x k3d
+          sudo mv k3d /usr/local/bin/k3d
+          k3d version
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run E2E tests
+        run: npm run test:e2e
+
+      - name: Upload test logs and reports
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: clustercodex-e2e-artifacts
+          path: |
+            /tmp/clustercodex-backend.log
+            /tmp/clustercodex-frontend.log
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 14
