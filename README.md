@@ -100,15 +100,15 @@ Central access control management:
 
 ### Core (MVP)
 
-| Technology                                                                     | Purpose                        |
-| ------------------------------------------------------------------------------ | ------------------------------ |
-| [React](https://react.dev) + [Vite](https://vitejs.dev)                        | Frontend UI                    |
-| [Express](https://expressjs.com)                                               | Backend API                    |
-| Local JWT (in-memory)                                                          | Auth (demo only)               |
-| [K8sGPT Operator](https://docs.k8sgpt.ai/getting-started/in-cluster-operator/) | In-cluster issue detection     |
-| [K3d](https://k3d.io/stable)                                                   | Local Kubernetes cluster       |
-| [OpenAI SDK](https://github.com/openai/openai-node)                            | LLM client (mock mode for MVP) |
-| [Kubernetes Client Node](https://github.com/kubernetes-client/javascript)      | Direct K8s API access          |
+| Technology                                                                     | Purpose                    |
+| ------------------------------------------------------------------------------ | -------------------------- |
+| [React](https://react.dev) + [Vite](https://vitejs.dev)                        | Frontend UI                |
+| [Express](https://expressjs.com)                                               | Backend API                |
+| Local JWT (in-memory)                                                          | Auth (demo only)           |
+| [K8sGPT Operator](https://docs.k8sgpt.ai/getting-started/in-cluster-operator/) | In-cluster issue detection |
+| [K3d](https://k3d.io/stable)                                                   | Local Kubernetes cluster   |
+| [OpenAI SDK](https://github.com/openai/openai-node)                            | Agentic AI solution        |
+| [Kubernetes Client Node](https://github.com/kubernetes-client/javascript)      | Direct K8s API access      |
 
 ### Post-MVP
 
@@ -124,7 +124,7 @@ Central access control management:
 # Clone and setup
 git clone https://github.com/justinthelaw/clustercodex.git
 cd clustercodex
-npm run install
+npm install
 
 # Setup environment
 cp backend/.env.example backend/.env
@@ -138,7 +138,7 @@ npm run dev             # Frontend + Backend
 # Login: admin@clustercodex.local / admin123!
 ```
 
-See [IMPLEMENTATION.md](IMPLEMENTATION.md) for detailed setup and development workflow.
+See [DEVELOPMENT.md](DEVELOPMENT.md) for detailed setup and development workflow.
 
 ## Project Structure
 
@@ -149,8 +149,7 @@ clustercodex/
 ├── tests/             # Playwright end-to-end tests
 ├── scripts/           # Infrastructure orchestration
 ├── charts/            # Helm charts (K8sGPT Operator)
-├── DEVELOPMENT.md.    # Local development guide
-├── IMPLEMENTATION.md  # Detailed implementation plan
+├── DEVELOPMENT.md     # Local development guide
 └── README.md          # This file
 ```
 
@@ -162,3 +161,19 @@ clustercodex/
 - **Enhanced RBAC**: Per-action permissions beyond namespace/kind filtering
 - **More Resource Support**: View and manage all custom and standard Kubernetes resources
 - **Multi-cluster Support**: Manage multiple clusters from one interface
+
+## Contributing
+
+See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for contribution workflow and pull request expectations.
+
+## Security
+
+See [docs/SECURITY.md](docs/SECURITY.md) for supported versions and vulnerability reporting.
+
+## Support
+
+See [docs/SUPPORT.md](docs/SUPPORT.md) for bug, feature, and support routing.
+
+## License
+
+This repository currently has no dedicated license file. Add one before broad public reuse.

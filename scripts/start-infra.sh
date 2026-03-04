@@ -5,9 +5,18 @@ CLUSTER_NAME=${CLUSTER_NAME:-clustercodex}
 KUBE_CONTEXT="k3d-${CLUSTER_NAME}"
 K8SGPT_NAMESPACE="k8sgpt-operator-system"
 
-command -v k3d >/dev/null 2>&1 || { echo "k3d is required"; exit 1; }
-command -v kubectl >/dev/null 2>&1 || { echo "kubectl is required"; exit 1; }
-command -v helm >/dev/null 2>&1 || { echo "helm is required"; exit 1; }
+command -v k3d >/dev/null 2>&1 || {
+  echo "k3d is required"
+  exit 1
+}
+command -v kubectl >/dev/null 2>&1 || {
+  echo "kubectl is required"
+  exit 1
+}
+command -v helm >/dev/null 2>&1 || {
+  echo "helm is required"
+  exit 1
+}
 
 if ! k3d cluster list | awk '{print $1}' | grep -q "^${CLUSTER_NAME}$"; then
   echo "Creating k3d cluster: ${CLUSTER_NAME}"
@@ -40,7 +49,7 @@ kubectl apply -f ./charts/gpu-test/deployment.yaml
 
 echo "Waiting up to 60s for Result CRDs in namespace: ${K8SGPT_NAMESPACE}"
 FOUND_RESULTS=false
-for i in {1..12}; do
+for _ in {1..12}; do
   if kubectl get results -n "${K8SGPT_NAMESPACE}" >/dev/null 2>&1; then
     if kubectl get results -n "${K8SGPT_NAMESPACE}" -o name | grep -q .; then
       FOUND_RESULTS=true
