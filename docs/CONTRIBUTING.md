@@ -27,14 +27,14 @@ Run these checks before pushing:
 
 ```bash
 pre-commit run --all-files
-npm --prefix backend run build
-npm --prefix frontend run build
+npm run build
+npm run test:e2e
 ```
 
-For E2E changes, run:
+Or run the full gate in one command:
 
 ```bash
-npm run test:e2e
+npm run flight-check
 ```
 
 ## Pre-commit

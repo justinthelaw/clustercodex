@@ -4,9 +4,7 @@ Describe what changed and why.
 
 ## Validation
 
-- [ ] `pre-commit run --all-files`
-- [ ] `npm --prefix backend run build`
-- [ ] `npm --prefix frontend run build`
+- [ ] `npm run flight-check`
 - [ ] Docs updated for user-facing or contributor-facing changes
 
 ## Checklist

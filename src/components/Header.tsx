@@ -1,0 +1,31 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
+function navClass(isActive: boolean): string {
+  return isActive ? "nav-link active" : "nav-link";
+}
+
+export default function Header() {
+  const pathname = usePathname();
+
+  return (
+    <header className="site-header">
+      <div className="site-header-inner">
+        <div className="brand">
+          <strong>Cluster Codex</strong>
+          <span className="brand-subtitle">Local-first Kubernetes troubleshooting</span>
+        </div>
+        <nav className="site-nav" aria-label="Primary">
+          <Link href="/" className={navClass(pathname === "/")}>
+            Current Issues
+          </Link>
+          <Link href="/resources" className={navClass(pathname === "/resources")}>
+            Resource Explorer
+          </Link>
+        </nav>
+      </div>
+    </header>
+  );
+}

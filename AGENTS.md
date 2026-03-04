@@ -3,14 +3,13 @@
 ## Purpose
 
 - Cluster Codex is a local-first platform engineering assistant for Kubernetes troubleshooting.
-- Scope includes frontend (`frontend/`), backend (`backend/`), infra scripts (`scripts/`), and Helm assets (`charts/`).
+- Scope includes a single frontend application (`src/`), infra scripts (`scripts/`), Helm assets (`charts/`), and E2E tests (`tests/`).
 
 ## Repository Map
 
 - `README.md`: product overview, architecture, and workflow.
 - `DEVELOPMENT.md`: local setup and development workflow.
-- `frontend/`: React + Vite application.
-- `backend/`: Express + TypeScript API.
+- `src/`: root Next.js React application (App Router + client components).
 - `scripts/`: infrastructure and E2E orchestration scripts.
 - `charts/`: Helm resources for ancillary cluster components.
 - `tests/`: Playwright E2E coverage.
@@ -25,6 +24,6 @@
 ## Validation
 
 - `pre-commit run --all-files`
-- `npm --prefix backend run build`
-- `npm --prefix frontend run build`
+- `npm run build`
 - `npm run test:e2e` for E2E-impacting changes
+- `npm run flight-check` for the full local CI-equivalent gate
