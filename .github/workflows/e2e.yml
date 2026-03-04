@@ -63,7 +63,7 @@ jobs:
           k3d version
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Run E2E tests
         env:
