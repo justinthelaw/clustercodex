@@ -559,7 +559,7 @@ export default function IssuesDashboard() {
                     Validate all generated commands before applying changes to your cluster.
                   </p>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 mb-4">
                     <Button variant="secondary" onClick={() => void submitPlan()} disabled={planLoading}>
                       {planLoading ? (
                         <>

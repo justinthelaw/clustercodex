@@ -85,6 +85,7 @@ export function buildPrompt(issue: Issue, mergedContext: string): string {
     "- Prioritize safe, reversible mitigation first, then deeper fixes.",
     "- Include concrete kubectl commands when possible; otherwise set kubectl to null.",
     "- Every step must include validation and impact; include rollback when impact is not none.",
+    "- Do not run shell commands or inspect repository files; reason only from the provided issue/context payloads.",
     "- Keep output concise and practical.",
     "",
     "Issue payload:",
