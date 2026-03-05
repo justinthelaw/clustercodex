@@ -54,6 +54,7 @@ Open <http://localhost:3000>.
 - Live plan generation uses `@openai/codex-sdk`.
 - Codex runtime env behavior is loaded from `.env` (`.env.example` provides baseline values).
 - Required runtime envs: `CODEX_MODEL`, `CODEX_AUTH_MODE`, `CODEX_LOCAL_PROVIDER`.
+- Optional plan safety envs: `CODEX_PLAN_TIMEOUT_MS`, `CODEX_PLAN_CONTEXT_MAX_CHARS`.
 - API key mode: set `CODEX_AUTH_MODE=api` and `CODEX_API_KEY`.
 - Local provider mode examples:
   - `CODEX_LOCAL_PROVIDER=ollama`

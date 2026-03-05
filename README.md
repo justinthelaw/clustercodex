@@ -124,6 +124,9 @@ There are no code-level defaults for Codex runtime envs; copy `.env.example` and
 # Provided in `.env.example`
 CODEX_MODEL=gpt-5.3-codex
 CODEX_AUTH_MODE=chatgpt
+# Optional: fail slow generations and cap oversized context input
+# CODEX_PLAN_TIMEOUT_MS=90000
+# CODEX_PLAN_CONTEXT_MAX_CHARS=12000
 
 # API key mode
 CODEX_AUTH_MODE=api

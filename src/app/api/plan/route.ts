@@ -98,8 +98,15 @@ export async function POST(request: Request) {
 
   const issue = body.issue;
   const context = mergedContext(body.contextSnapshot, body.userContext);
-  const authStatus = await getCodexAuthStatus();
   const e2eMode = deterministicFallbackEnabled();
+
+  if (e2eMode) {
+    return NextResponse.json(
+      localFallback(issue, context, "E2E mode enabled. Using deterministic local plan generation.")
+    );
+  }
+
+  const authStatus = await getCodexAuthStatus();
 
   if (!authStatus.authenticated) {
     const details = authStatus.details;
