@@ -30,7 +30,8 @@ trap cleanup EXIT
 echo "Starting frontend..."
 (
   cd "${ROOT_DIR}"
-  npm run dev -- --hostname 127.0.0.1 --port 3000
+  CLUSTERCODEX_E2E_MODE=1 NEXT_PUBLIC_CLUSTERCODEX_E2E_MODE=1 \
+    npm run dev -- --hostname 127.0.0.1 --port 3000
 ) >/tmp/clustercodex-frontend.log 2>&1 &
 FRONTEND_PID=$!
 
@@ -39,4 +40,4 @@ wait_for_url "Frontend app" "http://127.0.0.1:3000"
 
 echo "Running Playwright tests..."
 cd "${ROOT_DIR}"
-npx playwright test
+CLUSTERCODEX_E2E_MODE=1 NEXT_PUBLIC_CLUSTERCODEX_E2E_MODE=1 npx playwright test

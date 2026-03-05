@@ -13,30 +13,6 @@ Thanks for contributing to Cluster Codex.
 
 Follow the full setup guide in `DEVELOPMENT.md`.
 
-Quick commands:
-
-```bash
-npm install
-npm run infra:start
-npm run dev
-```
-
-## Validation
-
-Run these checks before pushing:
-
-```bash
-pre-commit run --all-files
-npm run build
-npm run test:e2e
-```
-
-Or run the full gate in one command:
-
-```bash
-npm run flight-check
-```
-
 ## Pre-commit
 
 Install hooks once per clone:

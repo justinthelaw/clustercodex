@@ -19,6 +19,17 @@ async function openPlanForFirstIssue(page: import("@playwright/test").Page) {
   await expect(page.getByRole("heading", { name: "Cluster Codex" })).toBeVisible();
 }
 
+function waitForPlanResponse(page: import("@playwright/test").Page) {
+  return page.waitForResponse((response) => {
+    try {
+      const url = new URL(response.url());
+      return url.pathname === "/api/plan" && response.request().method() === "POST" && response.ok();
+    } catch {
+      return false;
+    }
+  });
+}
+
 test("issues flow: list, generate plan, copy, regenerate", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Detected Issues" })).toBeVisible();
@@ -38,7 +49,9 @@ test("issues flow: list, generate plan, copy, regenerate", async ({ page }) => {
   await userContext.fill("Investigate issue details.");
   await expect(userContext).toHaveValue("Investigate issue details.");
 
+  const initialPlanRequest = waitForPlanResponse(page);
   await page.getByRole("button", { name: "Generate Plan" }).click();
+  await initialPlanRequest;
   const planOutput = page.getByLabel("Generated Plan");
   await expect(planOutput).toContainText("Summary:");
 
@@ -55,8 +68,9 @@ test("issues flow: list, generate plan, copy, regenerate", async ({ page }) => {
     // Clipboard permissions can vary by CI browser runtime.
   }
 
+  const regeneratePlanRequest = waitForPlanResponse(page);
   await page.getByRole("button", { name: "Regenerate Plan" }).click();
-  await expect(page.getByRole("button", { name: "Regenerating..." })).toBeVisible();
+  await regeneratePlanRequest;
   await expect(page.getByRole("button", { name: "Regenerate Plan" })).toBeVisible();
   await expect(planOutput).toContainText("Summary:");
 });

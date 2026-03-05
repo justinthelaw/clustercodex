@@ -1,13 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+/**
+ * Provides tabbed browsing of common Kubernetes resources with kind-specific tables.
+ */
+import { useEffect, useMemo, useState } from "react";
+import { LoaderCircle } from "lucide-react";
 import ErrorBanner from "@/components/ErrorBanner";
-import { listResources } from "@/lib/k8s-client";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { listResources } from "@/lib/k8sClient";
 import type { ResourceItem, ResourceKind } from "@/lib/types";
 
 type Tab = {
   label: string;
   kind: ResourceKind;
+};
+
+type Column = {
+  header: string;
+  value: (item: ResourceItem, index: number) => string;
 };
 
 const tabs: Tab[] = [
@@ -31,6 +44,7 @@ const tabs: Tab[] = [
   { label: "Events", kind: "Event" }
 ];
 
+// Normalizes mixed-value resource fields into display-safe strings.
 function getValue(item: ResourceItem, key: string): string {
   const value = item[key];
   if (value === null || value === undefined) {
@@ -39,15 +53,169 @@ function getValue(item: ResourceItem, key: string): string {
   return String(value);
 }
 
+// Derives stable row keys for rendering resource tables.
+function rowKey(kind: ResourceKind, item: ResourceItem, index: number): string {
+  const namespace = getValue(item, "namespace");
+  const name = getValue(item, "name");
+
+  if (namespace && name) {
+    return `${namespace}-${name}`;
+  }
+  if (name) {
+    return `${kind}-${name}`;
+  }
+  if (kind === "Event") {
+    return `${getValue(item, "involvedObject")}-${index}`;
+  }
+  return `${kind}-${index}`;
+}
+
+// Defines column layouts per Kubernetes resource kind.
+const columnsByKind: Record<ResourceKind, Column[]> = {
+  Pod: [
+    { header: "Type", value: (item) => getValue(item, "type") },
+    { header: "Name", value: (item) => getValue(item, "name") },
+    { header: "Namespace", value: (item) => getValue(item, "namespace") },
+    { header: "Status", value: (item) => getValue(item, "status") },
+    { header: "Restarts", value: (item) => getValue(item, "restarts") },
+    { header: "Node", value: (item) => getValue(item, "node") }
+  ],
+  Deployment: [
+    { header: "Type", value: (item) => getValue(item, "type") },
+    { header: "Name", value: (item) => getValue(item, "name") },
+    { header: "Namespace", value: (item) => getValue(item, "namespace") },
+    { header: "Ready", value: (item) => getValue(item, "ready") },
+    { header: "Updated", value: (item) => getValue(item, "updated") },
+    { header: "Available", value: (item) => getValue(item, "available") }
+  ],
+  DaemonSet: [
+    { header: "Type", value: (item) => getValue(item, "type") },
+    { header: "Name", value: (item) => getValue(item, "name") },
+    { header: "Namespace", value: (item) => getValue(item, "namespace") },
+    { header: "Ready", value: (item) => getValue(item, "ready") },
+    { header: "Updated", value: (item) => getValue(item, "updated") },
+    { header: "Available", value: (item) => getValue(item, "available") }
+  ],
+  ReplicaSet: [
+    { header: "Type", value: (item) => getValue(item, "type") },
+    { header: "Name", value: (item) => getValue(item, "name") },
+    { header: "Namespace", value: (item) => getValue(item, "namespace") },
+    { header: "Ready", value: (item) => getValue(item, "ready") },
+    { header: "Updated", value: (item) => getValue(item, "updated") },
+    { header: "Available", value: (item) => getValue(item, "available") }
+  ],
+  StatefulSet: [
+    { header: "Type", value: (item) => getValue(item, "type") },
+    { header: "Name", value: (item) => getValue(item, "name") },
+    { header: "Namespace", value: (item) => getValue(item, "namespace") },
+    { header: "Ready", value: (item) => getValue(item, "ready") },
+    { header: "Updated", value: (item) => getValue(item, "updated") },
+    { header: "Available", value: (item) => getValue(item, "available") }
+  ],
+  Job: [
+    { header: "Type", value: (item) => getValue(item, "type") },
+    { header: "Name", value: (item) => getValue(item, "name") },
+    { header: "Namespace", value: (item) => getValue(item, "namespace") },
+    { header: "Status", value: (item) => getValue(item, "status") },
+    { header: "Completions", value: (item) => getValue(item, "completions") }
+  ],
+  CronJob: [
+    { header: "Type", value: (item) => getValue(item, "type") },
+    { header: "Name", value: (item) => getValue(item, "name") },
+    { header: "Namespace", value: (item) => getValue(item, "namespace") },
+    { header: "Schedule", value: (item) => getValue(item, "schedule") },
+    { header: "Suspended", value: (item) => (getValue(item, "suspend") === "true" ? "Yes" : "No") }
+  ],
+  Service: [
+    { header: "Type", value: (item) => getValue(item, "type") },
+    { header: "Name", value: (item) => getValue(item, "name") },
+    { header: "Namespace", value: (item) => getValue(item, "namespace") },
+    { header: "Service Type", value: (item) => getValue(item, "serviceType") },
+    { header: "Cluster IP", value: (item) => getValue(item, "clusterIP") }
+  ],
+  Ingress: [
+    { header: "Type", value: (item) => getValue(item, "type") },
+    { header: "Name", value: (item) => getValue(item, "name") },
+    { header: "Namespace", value: (item) => getValue(item, "namespace") },
+    { header: "Class", value: (item) => getValue(item, "className") },
+    { header: "Hosts", value: (item) => getValue(item, "hosts") }
+  ],
+  Namespace: [
+    { header: "Type", value: (item) => getValue(item, "type") },
+    { header: "Name", value: (item) => getValue(item, "name") },
+    { header: "Status", value: (item) => getValue(item, "status") }
+  ],
+  ConfigMap: [
+    { header: "Type", value: (item) => getValue(item, "type") },
+    { header: "Name", value: (item) => getValue(item, "name") },
+    { header: "Namespace", value: (item) => getValue(item, "namespace") },
+    { header: "Keys", value: (item) => getValue(item, "dataKeys") }
+  ],
+  Secret: [
+    { header: "Type", value: (item) => getValue(item, "type") },
+    { header: "Name", value: (item) => getValue(item, "name") },
+    { header: "Namespace", value: (item) => getValue(item, "namespace") },
+    { header: "Secret Type", value: (item) => getValue(item, "secretType") }
+  ],
+  ServiceAccount: [
+    { header: "Type", value: (item) => getValue(item, "type") },
+    { header: "Name", value: (item) => getValue(item, "name") },
+    { header: "Namespace", value: (item) => getValue(item, "namespace") }
+  ],
+  PersistentVolume: [
+    { header: "Type", value: (item) => getValue(item, "type") },
+    { header: "Name", value: (item) => getValue(item, "name") },
+    { header: "Status", value: (item) => getValue(item, "status") },
+    { header: "Capacity", value: (item) => getValue(item, "capacity") }
+  ],
+  PersistentVolumeClaim: [
+    { header: "Type", value: (item) => getValue(item, "type") },
+    { header: "Name", value: (item) => getValue(item, "name") },
+    { header: "Namespace", value: (item) => getValue(item, "namespace") },
+    { header: "Status", value: (item) => getValue(item, "status") },
+    { header: "Capacity", value: (item) => getValue(item, "capacity") }
+  ],
+  CustomResourceDefinition: [
+    { header: "Type", value: (item) => getValue(item, "type") },
+    { header: "Name", value: (item) => getValue(item, "name") },
+    { header: "Scope", value: (item) => getValue(item, "scope") },
+    { header: "Group", value: (item) => getValue(item, "group") }
+  ],
+  Node: [
+    { header: "Type", value: (item) => getValue(item, "type") },
+    { header: "Name", value: (item) => getValue(item, "name") },
+    { header: "Status", value: (item) => getValue(item, "status") },
+    { header: "Roles", value: (item) => getValue(item, "roles") },
+    { header: "Version", value: (item) => getValue(item, "version") }
+  ],
+  Event: [
+    { header: "Type", value: (item) => getValue(item, "type") },
+    { header: "Namespace", value: (item) => getValue(item, "namespace") },
+    { header: "Reason", value: (item) => getValue(item, "reason") },
+    { header: "Message", value: (item) => getValue(item, "message") },
+    { header: "Involved", value: (item) => getValue(item, "involvedObject") },
+    {
+      header: "Last Seen",
+      value: (item) => {
+        const timestamp = getValue(item, "lastTimestamp");
+        return timestamp ? new Date(timestamp).toLocaleString() : "";
+      }
+    }
+  ]
+};
+
+// Renders resource data with tab-based kind selection and table formatting.
 export default function ResourcesExplorer() {
   const [activeKind, setActiveKind] = useState<ResourceKind>("Node");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [items, setItems] = useState<ResourceItem[]>([]);
 
+  // Reloads resources whenever the selected kind changes.
   useEffect(() => {
     let mounted = true;
 
+    // Fetches current resource data and guards against unmounted updates.
     const load = async () => {
       setLoading(true);
       setError("");
@@ -79,495 +247,80 @@ export default function ResourcesExplorer() {
     };
   }, [activeKind]);
 
+  const activeColumns = useMemo(() => columnsByKind[activeKind], [activeKind]);
+
+  // Chooses the appropriate table layout for the selected resource kind.
   const renderTable = () => {
     if (loading) {
-      return <div>Loading {activeKind.toLowerCase()}...</div>;
+      return (
+        <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-background/40 px-4 py-8 text-sm text-muted-foreground">
+          <LoaderCircle className="size-4 animate-spin" />
+          Loading {activeKind.toLowerCase()}...
+        </div>
+      );
     }
 
-    switch (activeKind) {
-      case "Pod":
-        return (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Name</th>
-                <th>Namespace</th>
-                <th>Status</th>
-                <th>Restarts</th>
-                <th>Node</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={6}>No resources found.</td>
-                </tr>
-              ) : (
-                items.map((pod) => (
-                  <tr key={`${getValue(pod, "namespace")}-${getValue(pod, "name")}`}>
-                    <td>{getValue(pod, "type")}</td>
-                    <td>{getValue(pod, "name")}</td>
-                    <td>{getValue(pod, "namespace")}</td>
-                    <td>{getValue(pod, "status")}</td>
-                    <td>{getValue(pod, "restarts")}</td>
-                    <td>{getValue(pod, "node")}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        );
-      case "Deployment":
-      case "DaemonSet":
-      case "ReplicaSet":
-      case "StatefulSet":
-        return (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Name</th>
-                <th>Namespace</th>
-                <th>Ready</th>
-                <th>Updated</th>
-                <th>Available</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={6}>No resources found.</td>
-                </tr>
-              ) : (
-                items.map((item) => (
-                  <tr key={`${getValue(item, "namespace")}-${getValue(item, "name")}`}>
-                    <td>{getValue(item, "type")}</td>
-                    <td>{getValue(item, "name")}</td>
-                    <td>{getValue(item, "namespace")}</td>
-                    <td>{getValue(item, "ready")}</td>
-                    <td>{getValue(item, "updated")}</td>
-                    <td>{getValue(item, "available")}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        );
-      case "Job":
-        return (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Name</th>
-                <th>Namespace</th>
-                <th>Status</th>
-                <th>Completions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={5}>No resources found.</td>
-                </tr>
-              ) : (
-                items.map((item) => (
-                  <tr key={`${getValue(item, "namespace")}-${getValue(item, "name")}`}>
-                    <td>{getValue(item, "type")}</td>
-                    <td>{getValue(item, "name")}</td>
-                    <td>{getValue(item, "namespace")}</td>
-                    <td>{getValue(item, "status")}</td>
-                    <td>{getValue(item, "completions")}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        );
-      case "CronJob":
-        return (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Name</th>
-                <th>Namespace</th>
-                <th>Schedule</th>
-                <th>Suspended</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={5}>No resources found.</td>
-                </tr>
-              ) : (
-                items.map((item) => (
-                  <tr key={`${getValue(item, "namespace")}-${getValue(item, "name")}`}>
-                    <td>{getValue(item, "type")}</td>
-                    <td>{getValue(item, "name")}</td>
-                    <td>{getValue(item, "namespace")}</td>
-                    <td>{getValue(item, "schedule")}</td>
-                    <td>{getValue(item, "suspend") === "true" ? "Yes" : "No"}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        );
-      case "Service":
-        return (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Name</th>
-                <th>Namespace</th>
-                <th>Service Type</th>
-                <th>Cluster IP</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={5}>No resources found.</td>
-                </tr>
-              ) : (
-                items.map((item) => (
-                  <tr key={`${getValue(item, "namespace")}-${getValue(item, "name")}`}>
-                    <td>{getValue(item, "type")}</td>
-                    <td>{getValue(item, "name")}</td>
-                    <td>{getValue(item, "namespace")}</td>
-                    <td>{getValue(item, "serviceType")}</td>
-                    <td>{getValue(item, "clusterIP")}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        );
-      case "Ingress":
-        return (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Name</th>
-                <th>Namespace</th>
-                <th>Class</th>
-                <th>Hosts</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={5}>No resources found.</td>
-                </tr>
-              ) : (
-                items.map((item) => (
-                  <tr key={`${getValue(item, "namespace")}-${getValue(item, "name")}`}>
-                    <td>{getValue(item, "type")}</td>
-                    <td>{getValue(item, "name")}</td>
-                    <td>{getValue(item, "namespace")}</td>
-                    <td>{getValue(item, "className")}</td>
-                    <td>{getValue(item, "hosts")}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        );
-      case "Namespace":
-        return (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Name</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={3}>No resources found.</td>
-                </tr>
-              ) : (
-                items.map((item) => (
-                  <tr key={getValue(item, "name")}>
-                    <td>{getValue(item, "type")}</td>
-                    <td>{getValue(item, "name")}</td>
-                    <td>{getValue(item, "status")}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        );
-      case "ConfigMap":
-        return (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Name</th>
-                <th>Namespace</th>
-                <th>Keys</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={4}>No resources found.</td>
-                </tr>
-              ) : (
-                items.map((item) => (
-                  <tr key={`${getValue(item, "namespace")}-${getValue(item, "name")}`}>
-                    <td>{getValue(item, "type")}</td>
-                    <td>{getValue(item, "name")}</td>
-                    <td>{getValue(item, "namespace")}</td>
-                    <td>{getValue(item, "dataKeys")}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        );
-      case "Secret":
-        return (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Name</th>
-                <th>Namespace</th>
-                <th>Secret Type</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={4}>No resources found.</td>
-                </tr>
-              ) : (
-                items.map((item) => (
-                  <tr key={`${getValue(item, "namespace")}-${getValue(item, "name")}`}>
-                    <td>{getValue(item, "type")}</td>
-                    <td>{getValue(item, "name")}</td>
-                    <td>{getValue(item, "namespace")}</td>
-                    <td>{getValue(item, "secretType")}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        );
-      case "ServiceAccount":
-        return (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Name</th>
-                <th>Namespace</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={3}>No resources found.</td>
-                </tr>
-              ) : (
-                items.map((item) => (
-                  <tr key={`${getValue(item, "namespace")}-${getValue(item, "name")}`}>
-                    <td>{getValue(item, "type")}</td>
-                    <td>{getValue(item, "name")}</td>
-                    <td>{getValue(item, "namespace")}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        );
-      case "PersistentVolume":
-        return (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Name</th>
-                <th>Status</th>
-                <th>Capacity</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={4}>No resources found.</td>
-                </tr>
-              ) : (
-                items.map((item) => (
-                  <tr key={getValue(item, "name")}>
-                    <td>{getValue(item, "type")}</td>
-                    <td>{getValue(item, "name")}</td>
-                    <td>{getValue(item, "status")}</td>
-                    <td>{getValue(item, "capacity")}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        );
-      case "PersistentVolumeClaim":
-        return (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Name</th>
-                <th>Namespace</th>
-                <th>Status</th>
-                <th>Capacity</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={5}>No resources found.</td>
-                </tr>
-              ) : (
-                items.map((item) => (
-                  <tr key={`${getValue(item, "namespace")}-${getValue(item, "name")}`}>
-                    <td>{getValue(item, "type")}</td>
-                    <td>{getValue(item, "name")}</td>
-                    <td>{getValue(item, "namespace")}</td>
-                    <td>{getValue(item, "status")}</td>
-                    <td>{getValue(item, "capacity")}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        );
-      case "CustomResourceDefinition":
-        return (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Name</th>
-                <th>Scope</th>
-                <th>Group</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={4}>No resources found.</td>
-                </tr>
-              ) : (
-                items.map((item) => (
-                  <tr key={getValue(item, "name")}>
-                    <td>{getValue(item, "type")}</td>
-                    <td>{getValue(item, "name")}</td>
-                    <td>{getValue(item, "scope")}</td>
-                    <td>{getValue(item, "group")}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        );
-      case "Node":
-        return (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Name</th>
-                <th>Status</th>
-                <th>Roles</th>
-                <th>Version</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={5}>No resources found.</td>
-                </tr>
-              ) : (
-                items.map((item) => (
-                  <tr key={getValue(item, "name")}>
-                    <td>{getValue(item, "type")}</td>
-                    <td>{getValue(item, "name")}</td>
-                    <td>{getValue(item, "status")}</td>
-                    <td>{getValue(item, "roles")}</td>
-                    <td>{getValue(item, "version")}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        );
-      case "Event":
-        return (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Namespace</th>
-                <th>Reason</th>
-                <th>Message</th>
-                <th>Involved</th>
-                <th>Last Seen</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 ? (
-                <tr>
-                  <td colSpan={6}>No resources found.</td>
-                </tr>
-              ) : (
-                items.map((item, index) => (
-                  <tr key={`${getValue(item, "involvedObject")}-${index}`}>
-                    <td>{getValue(item, "type")}</td>
-                    <td>{getValue(item, "namespace")}</td>
-                    <td>{getValue(item, "reason")}</td>
-                    <td>{getValue(item, "message")}</td>
-                    <td>{getValue(item, "involvedObject")}</td>
-                    <td>
-                      {getValue(item, "lastTimestamp")
-                        ? new Date(getValue(item, "lastTimestamp")).toLocaleString()
-                        : ""}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        );
-      default:
-        return null;
-    }
+    return (
+      <div className="overflow-x-auto rounded-xl border border-border/60 bg-background/45">
+        <Table className="min-w-[720px]">
+          <TableHeader>
+            <TableRow>
+              {activeColumns.map((column) => (
+                <TableHead key={column.header}>{column.header}</TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {items.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={activeColumns.length} className="text-muted-foreground">
+                  No resources found.
+                </TableCell>
+              </TableRow>
+            ) : (
+              items.map((item, index) => (
+                <TableRow key={rowKey(activeKind, item, index)}>
+                  {activeColumns.map((column) => (
+                    <TableCell key={column.header}>{column.value(item, index)}</TableCell>
+                  ))}
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    );
   };
 
   return (
-    <div className="card">
-      <h2>Resource Explorer</h2>
-      <div className="button-row wrap">
-        {tabs.map((tab) => (
-          <button
-            key={tab.kind}
-            className={`button ${activeKind === tab.kind ? "" : "secondary"}`}
-            onClick={() => setActiveKind(tab.kind)}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-      <ErrorBanner message={error} />
-      <div className="table-wrap">{renderTable()}</div>
-    </div>
+    <Card className="surface-glow">
+      <CardHeader className="space-y-2">
+        <CardTitle>Resource Explorer</CardTitle>
+        <CardDescription>
+          Browse live Kubernetes inventory by workload and cluster object kind.
+        </CardDescription>
+      </CardHeader>
+
+      <CardContent className="space-y-4">
+        <ScrollArea className="w-full whitespace-nowrap rounded-xl border border-border/60 bg-background/35">
+          <div className="flex w-max items-center gap-2 p-2">
+            {tabs.map((tab) => (
+              <Button
+                key={tab.kind}
+                variant={activeKind === tab.kind ? "default" : "secondary"}
+                size="sm"
+                onClick={() => setActiveKind(tab.kind)}
+              >
+                {tab.label}
+              </Button>
+            ))}
+          </div>
+        </ScrollArea>
+
+        <ErrorBanner message={error} />
+
+        {renderTable()}
+      </CardContent>
+    </Card>
   );
 }

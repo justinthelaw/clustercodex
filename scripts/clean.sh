@@ -7,6 +7,7 @@ cd "${ROOT_DIR}"
 echo "Cleaning build and test artifacts..."
 
 paths=(
+  ".env"
   ".next"
   "out"
   "dist"

@@ -1,3 +1,6 @@
+/**
+ * Defines shared domain types used by frontend components and server routes.
+ */
 export type Issue = {
   id: string;
   title: string;
@@ -34,6 +37,28 @@ export type CodexPlan = {
   rootCauseHypotheses: string[];
   evidenceToGather: string[];
   recommendations: string[];
+};
+
+export type PlanProvider = "codex" | "local";
+
+export type PlanGenerationResponse = {
+  plan: CodexPlan;
+  provider: PlanProvider;
+  model: string;
+  warning?: string;
+};
+
+export type CodexAuthMethod =
+  | "chatgpt_oauth"
+  | "api_key"
+  | "auto"
+  | "local_provider";
+
+export type CodexAuthStatus = {
+  authenticated: boolean;
+  method: CodexAuthMethod;
+  provider: string;
+  details: string;
 };
 
 export type ResourceKind =
