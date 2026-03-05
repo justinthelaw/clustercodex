@@ -1,7 +1,8 @@
+/**
+ * Configures Next.js server bundling behavior for Codex SDK optional platform binaries.
+ */
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Keep Codex SDK packages external on the server so optional platform
-  // binaries resolve from node_modules at runtime.
   serverExternalPackages: [
     "@openai/codex-sdk",
     "@openai/codex",

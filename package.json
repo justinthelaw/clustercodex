@@ -5,12 +5,13 @@
     "email": "justinthelaw@gmail.com"
   },
   "engines": {
-    "node": "25.6.1"
+    "node": ">=20.0.0"
   },
   "version": "0.1.0",
   "private": true,
   "scripts": {
     "dev": "./scripts/stop-infra.sh && ./scripts/start-infra.sh && next dev",
+    "dev:app": "next dev",
     "build": "next build --experimental-build-mode compile",
     "start": "next start",
     "typecheck": "tsc --noEmit",

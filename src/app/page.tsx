@@ -3,7 +3,7 @@
  */
 import IssuesDashboard from "@/components/IssuesDashboard";
 
-// Displays the default dashboard view for active cluster issues.
+/** Displays the default dashboard view for active cluster issues. */
 export default function HomePage() {
   return <IssuesDashboard />;
 }

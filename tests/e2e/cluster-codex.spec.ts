@@ -1,9 +1,14 @@
+/**
+ * Covers core end-to-end flows for issues triage, planning, and resource browsing.
+ */
 import { expect, test } from "@playwright/test";
 
+/** Returns the primary issues table on the current page. */
 function issuesTable(page: import("@playwright/test").Page) {
   return page.getByRole("table").first();
 }
 
+/** Returns the first active issue row that can open a plan modal. */
 function firstActiveIssueRow(page: import("@playwright/test").Page) {
   return issuesTable(page)
     .locator("tbody tr", {
@@ -12,6 +17,7 @@ function firstActiveIssueRow(page: import("@playwright/test").Page) {
     .first();
 }
 
+/** Opens the plan modal for the first active issue row. */
 async function openPlanForFirstIssue(page: import("@playwright/test").Page) {
   const row = firstActiveIssueRow(page);
   await expect(row).toBeVisible();
@@ -19,6 +25,7 @@ async function openPlanForFirstIssue(page: import("@playwright/test").Page) {
   await expect(page.getByRole("heading", { name: "Cluster Codex" })).toBeVisible();
 }
 
+/** Waits for a successful plan-generation API response. */
 function waitForPlanResponse(page: import("@playwright/test").Page) {
   return page.waitForResponse((response) => {
     try {
@@ -64,9 +71,7 @@ test("issues flow: list, generate plan, copy, regenerate", async ({ page }) => {
   try {
     const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
     expect(clipboardText).toContain("Summary:");
-  } catch {
-    // Clipboard permissions can vary by CI browser runtime.
-  }
+  } catch {}
 
   const regeneratePlanRequest = waitForPlanResponse(page);
   await page.getByRole("button", { name: "Regenerate Plan" }).click();

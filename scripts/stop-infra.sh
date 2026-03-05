@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Tears down the local k3d cluster used for development and E2E validation.
 set -euo pipefail
 
 CLUSTER_NAME=${CLUSTER_NAME:-clustercodex}

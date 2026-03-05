@@ -3,7 +3,7 @@
  */
 import ResourcesExplorer from "@/components/ResourcesExplorer";
 
-// Displays the resource explorer interface for cluster browsing.
+/** Displays the resource explorer interface for cluster browsing. */
 export default function ResourcesPage() {
   return <ResourcesExplorer />;
 }

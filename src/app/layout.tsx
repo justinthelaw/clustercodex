@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   description: "Local-first Kubernetes troubleshooting workspace"
 };
 
-// Renders the site chrome and route content container.
+/** Renders the site chrome and route content container. */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="dark" suppressHydrationWarning>

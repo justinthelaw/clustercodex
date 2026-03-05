@@ -11,7 +11,7 @@ type RuntimeAvailability = {
   details: string;
 };
 
-// Verifies that the Codex runtime can be initialized with the active config.
+/** Verifies that the Codex runtime can be initialized with the active config. */
 function checkCodexRuntimeAvailability(runtime: ResolvedCodexRuntime): RuntimeAvailability {
   try {
     const codex = new Codex(runtime.codexOptions);
@@ -28,7 +28,7 @@ function checkCodexRuntimeAvailability(runtime: ResolvedCodexRuntime): RuntimeAv
   }
 }
 
-// Returns auth status details used by APIs and status indicators.
+/** Returns auth status details used by APIs and status indicators. */
 export async function getCodexAuthStatus(): Promise<CodexAuthStatus> {
   let runtime: ResolvedCodexRuntime;
   try {

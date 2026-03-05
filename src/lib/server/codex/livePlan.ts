@@ -15,7 +15,7 @@ type TimeoutState = {
   kind: TimeoutKind;
 };
 
-// Parses positive timeout settings with a stable default.
+/** Parses positive timeout settings with a stable default. */
 function readPositiveTimeout(name: string): number | null {
   const raw = process.env[name];
   if (!raw) {
@@ -26,18 +26,18 @@ function readPositiveTimeout(name: string): number | null {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
-// Resolves optional progress timeout.
+/** Resolves optional progress timeout. */
 function resolvePlanIdleTimeoutMs(): number | null {
   return readPositiveTimeout("CODEX_PLAN_IDLE_TIMEOUT_MS");
 }
 
-// Resolves an absolute timeout cap that prevents infinite requests.
+/** Resolves an absolute timeout cap that prevents infinite requests. */
 function resolvePlanMaxTimeoutMs(idleTimeoutMs: number | null): number {
   const configuredMax = readPositiveTimeout("CODEX_PLAN_MAX_TIMEOUT_MS") ?? DEFAULT_PLAN_MAX_TIMEOUT_MS;
   return Math.max(configuredMax, idleTimeoutMs ?? 0);
 }
 
-// Runs a live model turn and validates the structured plan response.
+/** Runs a live model turn and validates the structured plan response. */
 export async function generateLiveCodexPlan(issue: Issue, mergedContext: string) {
   const idleTimeoutMs = resolvePlanIdleTimeoutMs();
   const maxTimeoutMs = resolvePlanMaxTimeoutMs(idleTimeoutMs);
@@ -47,6 +47,7 @@ export async function generateLiveCodexPlan(issue: Issue, mergedContext: string)
   };
   let idleTimeoutHandle: NodeJS.Timeout | null = null;
 
+  /** Resets the idle-progress timeout whenever streamed events are received. */
   const resetIdleTimeout = () => {
     if (!idleTimeoutMs) {
       return;

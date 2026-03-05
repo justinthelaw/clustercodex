@@ -1,3 +1,4 @@
+/* Defines global theme tokens, base styles, and shared utility surfaces. */
 @import "tailwindcss";
 
 @custom-variant dark (&:is(.dark *));

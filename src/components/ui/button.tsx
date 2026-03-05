@@ -1,3 +1,6 @@
+/**
+ * Provides shared button primitives with variant and size composition.
+ */
 import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
@@ -30,6 +33,7 @@ const buttonVariants = cva(
   }
 );
 
+/** Renders a button or slotted child with shared styling variants. */
 function Button({
   className,
   variant,

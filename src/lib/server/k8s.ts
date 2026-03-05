@@ -58,7 +58,7 @@ const RESOURCE_KINDS: ResourceKind[] = [
   "Event"
 ];
 
-// Resolves the namespace where K8sGPT result CRDs are expected.
+/** Resolves the namespace where K8sGPT result CRDs are expected. */
 function resolveK8sGPTNamespace(): string {
   return (
     process.env.K8SGPT_NAMESPACE ||
@@ -67,7 +67,7 @@ function resolveK8sGPTNamespace(): string {
   );
 }
 
-// Builds kubeconfig from environment overrides or default local configuration.
+/** Builds kubeconfig from environment overrides or default local configuration. */
 function buildKubeConfig(): KubeConfig {
   const kubeConfig = new KubeConfig();
   const kubeconfigPath = process.env.KUBECONFIG;
@@ -86,15 +86,7 @@ function buildKubeConfig(): KubeConfig {
   return kubeConfig;
 }
 
-// Normalizes severity values into a predictable lowercase format.
-function normalizeSeverity(value: string | undefined): string {
-  if (!value) {
-    return "unknown";
-  }
-  return value.toLowerCase();
-}
-
-// Splits namespaced resource identifiers into namespace and name components.
+/** Splits namespaced resource identifiers into namespace and name components. */
 function parseNamespacedName(rawName: string | undefined, fallbackNamespace: string) {
   if (!rawName) {
     return { namespace: fallbackNamespace, name: "unknown" };
@@ -111,7 +103,7 @@ function parseNamespacedName(rawName: string | undefined, fallbackNamespace: str
   return { namespace: fallbackNamespace, name: rawName };
 }
 
-// Chooses the most useful timestamp from a Kubernetes event object.
+/** Chooses the most useful timestamp from a Kubernetes event object. */
 function eventTime(event: any): string {
   return (
     event.lastTimestamp ||
@@ -122,7 +114,7 @@ function eventTime(event: any): string {
   );
 }
 
-// Formats event collections into a tabular plain-text block for operator context.
+/** Formats event collections into a tabular plain-text block for operator context. */
 function buildEventsTable(events: any[]): string {
   if (!events.length) {
     return "No events found.";
@@ -156,7 +148,7 @@ function buildEventsTable(events: any[]): string {
   return lines.join("\n");
 }
 
-// Fetches related events for a target object and returns a display-ready table.
+/** Fetches related events for a target object and returns a display-ready table. */
 async function fetchEventsTable(
   api: CoreV1Api,
   namespace: string,
@@ -179,7 +171,7 @@ async function fetchEventsTable(
   }
 }
 
-// Picks the most specific apiVersion available from K8sGPT payload variants.
+/** Picks the most specific apiVersion available from K8sGPT payload variants. */
 function pickApiVersion(result: any, spec: any, status: any): string {
   return (
     result?.apiVersion ||
@@ -192,7 +184,7 @@ function pickApiVersion(result: any, spec: any, status: any): string {
   );
 }
 
-// Infers apiVersion defaults from common Kubernetes kinds when not provided.
+/** Infers apiVersion defaults from common Kubernetes kinds when not provided. */
 function inferApiVersion(kind: string): string {
   const normalized = kind.toLowerCase();
 
@@ -233,7 +225,7 @@ function inferApiVersion(kind: string): string {
   return "";
 }
 
-// Retrieves a full YAML definition for the target object when accessible.
+/** Retrieves a full YAML definition for the target object when accessible. */
 async function fetchDefinition(
   api: KubernetesObjectApi,
   apiVersion: string,
@@ -254,7 +246,7 @@ async function fetchDefinition(
   }
 }
 
-// Extracts the most relevant error text from result, spec, or status payloads.
+/** Extracts the most relevant error text from result, spec, or status payloads. */
 function extractErrorText(result: any, spec: any, status: any): string {
   return (
     (Array.isArray(result?.error) ? result.error[0]?.text : result?.error?.text) ||
@@ -264,7 +256,7 @@ function extractErrorText(result: any, spec: any, status: any): string {
   );
 }
 
-// Queries K8sGPT results and maps them into normalized issue records.
+/** Queries K8sGPT results and maps them into normalized issue records. */
 async function listK8sGPTIssuesInternal(): Promise<K8sGPTIssue[]> {
   const namespace = resolveK8sGPTNamespace();
   const kubeConfig = buildKubeConfig();
@@ -311,7 +303,6 @@ async function listK8sGPTIssuesInternal(): Promise<K8sGPTIssue[]> {
         return {
           id: `${metadata.name || "result"}-${index}`,
           title: kind,
-          severity: normalizeSeverity(result.severity || result.severityScore || result.level),
           kind,
           namespace: parsed.namespace,
           name: parsed.name,
@@ -345,7 +336,6 @@ async function listK8sGPTIssuesInternal(): Promise<K8sGPTIssue[]> {
         return {
           id: metadata.name || "result",
           title: kind,
-          severity: normalizeSeverity(status.severity || spec.severity),
           kind,
           namespace: parsed.namespace,
           name: parsed.name,
@@ -366,7 +356,7 @@ async function listK8sGPTIssuesInternal(): Promise<K8sGPTIssue[]> {
   return resolved.sort((a, b) => Date.parse(b.detectedAt) - Date.parse(a.detectedAt));
 }
 
-// Derives a concise pod status including waiting/terminated reasons when present.
+/** Derives a concise pod status including waiting/terminated reasons when present. */
 function formatPodStatus(pod: any): string {
   const status = pod.status?.phase || "Unknown";
   const waiting =
@@ -379,7 +369,7 @@ function formatPodStatus(pod: any): string {
   return waiting || terminated || status;
 }
 
-// Aggregates restart counts across all container statuses in a pod.
+/** Aggregates restart counts across all container statuses in a pod. */
 function countRestarts(pod: any): number {
   return (pod.status?.containerStatuses || []).reduce(
     (sum: number, container: any) => sum + (container.restartCount || 0),
@@ -387,7 +377,7 @@ function countRestarts(pod: any): number {
   );
 }
 
-// Produces fallback issues directly from unhealthy pod states when CRD data is unavailable.
+/** Produces fallback issues directly from unhealthy pod states when CRD data is unavailable. */
 async function listFallbackIssuesFromPods(): Promise<Issue[]> {
   const kubeConfig = buildKubeConfig();
   const core = kubeConfig.makeApiClient(CoreV1Api);
@@ -412,7 +402,6 @@ async function listFallbackIssuesFromPods(): Promise<Issue[]> {
     issues.push({
       id: `pod-${namespace}-${name}`,
       title: problem,
-      severity: "medium",
       kind: "Pod",
       namespace,
       name,
@@ -430,7 +419,7 @@ async function listFallbackIssuesFromPods(): Promise<Issue[]> {
   return issues.sort((a, b) => Date.parse(b.detectedAt) - Date.parse(a.detectedAt));
 }
 
-// Builds a comma-separated node role string from Kubernetes labels.
+/** Builds a comma-separated node role string from Kubernetes labels. */
 function nodeRoles(node: any): string {
   const labels = node.metadata?.labels || {};
   const roles = Object.keys(labels)
@@ -439,12 +428,12 @@ function nodeRoles(node: any): string {
   return roles.length ? roles.join(",") : "worker";
 }
 
-// Normalizes Kubernetes client responses that may nest payloads under body.
+/** Normalizes Kubernetes client responses that may nest payloads under body. */
 function toBody<T>(response: K8sResponse<T>): T {
   return (response.body ?? response) as T;
 }
 
-// Chooses the best available timestamp for event sorting and display.
+/** Chooses the best available timestamp for event sorting and display. */
 function eventLastTimestamp(event: any): string {
   return (
     event.lastTimestamp ||
@@ -455,7 +444,7 @@ function eventLastTimestamp(event: any): string {
   );
 }
 
-// Returns issue data, preferring K8sGPT CRD results with pod-status fallback.
+/** Returns issue data, preferring K8sGPT CRD results with pod-status fallback. */
 export async function listIssuesFromCluster(): Promise<Issue[]> {
   try {
     const issues = await listK8sGPTIssuesInternal();
@@ -468,12 +457,12 @@ export async function listIssuesFromCluster(): Promise<Issue[]> {
   }
 }
 
-// Validates query values against supported resource kind options.
+/** Validates query values against supported resource kind options. */
 export function isResourceKind(value: string): value is ResourceKind {
   return RESOURCE_KINDS.includes(value as ResourceKind);
 }
 
-// Lists resources for a requested kind and maps them into table-friendly records.
+/** Lists resources for a requested kind and maps them into table-friendly records. */
 export async function listResourcesFromCluster(kind: ResourceKind): Promise<ResourceItem[]> {
   const kubeConfig = buildKubeConfig();
   const core = kubeConfig.makeApiClient(CoreV1Api);

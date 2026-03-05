@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Removes generated artifacts, dependencies, and local runtime residue.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

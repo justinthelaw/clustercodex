@@ -4,7 +4,6 @@
 export type Issue = {
   id: string;
   title: string;
-  severity: string;
   kind: string;
   namespace: string;
   name: string;

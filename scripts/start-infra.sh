@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Bootstraps a local k3d cluster with deterministic failure fixtures for Cluster Codex.
 set -euo pipefail
 
 CLUSTER_NAME=${CLUSTER_NAME:-clustercodex}
@@ -28,7 +29,7 @@ fi
 kubectl config use-context "${KUBE_CONTEXT}" >/dev/null
 
 echo "Installing K8sGPT Operator"
-helm repo add k8sgpt https://charts.k8sgpt.ai/ >/dev/null
+helm repo add k8sgpt https://charts.k8sgpt.ai/ --force-update >/dev/null
 helm repo update >/dev/null
 helm upgrade --install k8sgpt-operator k8sgpt/k8sgpt-operator \
   --namespace "${K8SGPT_NAMESPACE}" \
@@ -41,7 +42,7 @@ echo "Deploying podinfo chart with bad values"
 helm upgrade --install podinfo oci://ghcr.io/stefanprodan/charts/podinfo \
   --values "./charts/podinfo/values.yaml"
 
-echo "Deploying deployment wih fake image reference"
+echo "Deploying deployment with fake image reference"
 kubectl apply -f ./charts/broken-deployment/deployment.yaml
 
 echo "Deploying GPU pod into a non-GPU cluster"
