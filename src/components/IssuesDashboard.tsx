@@ -3,12 +3,36 @@
 /**
  * Presents issue triage workflows, plan generation, and operator context management.
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { ClipboardCopy, LoaderCircle, RefreshCw, Sparkles } from "lucide-react";
 import ErrorBanner from "@/components/ErrorBanner";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { loadDismissedIssueIds, saveDismissedIssueIds } from "@/lib/dismissedIssues";
 import { generatePlan, getCodexAuthStatus, listIssues } from "@/lib/k8sClient";
 import { generateLocalPlan } from "@/lib/planGenerator";
 import type { CodexAuthStatus, CodexPlan, Issue } from "@/lib/types";
+
+type SeverityVariant = "low" | "medium" | "high" | "unknown";
+
+// Maps issue severities into badge styles used by the issue table.
+function severityToVariant(severity: string): SeverityVariant {
+  const normalized = severity.toLowerCase();
+  if (normalized === "low") {
+    return "low";
+  }
+  if (normalized === "medium") {
+    return "medium";
+  }
+  if (normalized === "high" || normalized === "critical") {
+    return "high";
+  }
+  return "unknown";
+}
 
 // Renders the primary issue dashboard and associated planning modal.
 export default function IssuesDashboard() {
@@ -28,13 +52,10 @@ export default function IssuesDashboard() {
   const [contextSnapshot, setContextSnapshot] = useState("");
   const [view, setView] = useState<"active" | "dismissed">("active");
   const [copyStatus, setCopyStatus] = useState<"idle" | "success" | "error">("idle");
-  const [copyPressed, setCopyPressed] = useState(false);
-  const [planHasScroll, setPlanHasScroll] = useState(false);
   const [codexOAuthConnected, setCodexOAuthConnected] = useState<boolean | null>(null);
   const [codexAuthMethod, setCodexAuthMethod] = useState<CodexAuthStatus["method"] | null>(null);
   const [codexProvider, setCodexProvider] = useState("");
   const [codexAuthDetails, setCodexAuthDetails] = useState("");
-  const planOutputRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Loads issues and applies persisted dismiss-state filtering.
   const loadData = async () => {
@@ -47,7 +68,7 @@ export default function IssuesDashboard() {
 
       setIssues(allIssues.filter((issue) => !dismissedIds.has(issue.id)));
       setDismissedIssues(allIssues.filter((issue) => dismissedIds.has(issue.id)));
-    } catch (loadError) {
+    } catch {
       setError(
         "Failed to load cluster issues. Verify your kubeconfig and cluster permissions are valid."
       );
@@ -117,6 +138,7 @@ export default function IssuesDashboard() {
     setPlanWarning("");
     setPlanSource("");
     setPlanResult(null);
+    setCopyStatus("idle");
     setCodexOAuthConnected(null);
     setCodexAuthMethod(null);
     setCodexProvider("");
@@ -177,6 +199,7 @@ export default function IssuesDashboard() {
     setPlanError("");
     setPlanWarning("");
     setPlanSource("");
+    setCopyStatus("idle");
 
     if (issue.context) {
       const { kind, name, errorText, eventsTable, definition } = issue.context;
@@ -223,7 +246,7 @@ export default function IssuesDashboard() {
       if (result.warning) {
         setPlanWarning(result.warning);
       }
-    } catch (error) {
+    } catch (submitError) {
       if (e2eDeterministicFallbackEnabled) {
         const mergedContext = [contextSnapshot.trim(), userContext.trim()].filter(Boolean).join("\n\n");
         const fallback = generateLocalPlan(selectedIssue, mergedContext);
@@ -231,7 +254,7 @@ export default function IssuesDashboard() {
         setPlanSource("Local fallback (client-side deterministic planner, E2E mode)");
         setPlanWarning("Failed to contact plan API in E2E mode. Using deterministic fallback.");
       } else {
-        const message = error instanceof Error ? error.message : "Failed to generate plan.";
+        const message = submitError instanceof Error ? submitError.message : "Failed to generate plan.";
         setPlanError(message);
       }
     } finally {
@@ -277,17 +300,6 @@ export default function IssuesDashboard() {
     return lines.join("\n");
   }, [planResult]);
 
-  // Tracks whether the read-only output has a visible scrollbar for copy button positioning.
-  useEffect(() => {
-    const node = planOutputRef.current;
-    if (!node) {
-      setPlanHasScroll(false);
-      return;
-    }
-
-    setPlanHasScroll(node.scrollHeight > node.clientHeight + 1);
-  }, [planText]);
-
   // Copies generated plan output to the clipboard with transient success/error feedback.
   const handleCopyPlan = async () => {
     if (!planText) {
@@ -300,7 +312,6 @@ export default function IssuesDashboard() {
     } catch {
       setCopyStatus("error");
     } finally {
-      setCopyPressed(false);
       setTimeout(() => setCopyStatus("idle"), 2000);
     }
   };
@@ -338,196 +349,234 @@ export default function IssuesDashboard() {
     return "Codex OAuth is not connected.";
   }, [codexAuthDetails, codexOAuthConnected, codexAuthMethod]);
 
+  const currentIssues = view === "active" ? issues : dismissedIssues;
+
   return (
-    <div className="card">
-      <div className="card-header-row">
-        <h2>Detected Issues</h2>
-        <button className="button secondary" onClick={() => void loadData()} disabled={loading}>
-          {loading ? "Refreshing..." : "Refresh"}
-        </button>
-      </div>
+    <>
+      <Card className="surface-glow">
+        <CardHeader className="gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <CardTitle>Detected Issues</CardTitle>
+            <CardDescription>
+              Investigate active incidents and generate structured remediation plans.
+            </CardDescription>
+          </div>
+          <Button variant="secondary" onClick={() => void loadData()} disabled={loading}>
+            {loading ? (
+              <>
+                <LoaderCircle className="size-4 animate-spin" />
+                Refreshing...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="size-4" />
+                Refresh
+              </>
+            )}
+          </Button>
+        </CardHeader>
 
-      <ErrorBanner message={error} />
+        <CardContent className="space-y-4">
+          <ErrorBanner message={error} />
 
-      <div className="button-row">
-        <button className={`button ${view === "active" ? "" : "secondary"}`} onClick={() => setView("active")}>
-          Active
-        </button>
-        <button
-          className={`button ${view === "dismissed" ? "" : "secondary"}`}
-          onClick={() => setView("dismissed")}
+          <div className="flex flex-wrap gap-2">
+            <Button variant={view === "active" ? "default" : "secondary"} onClick={() => setView("active")}>
+              Active
+            </Button>
+            <Button
+              variant={view === "dismissed" ? "default" : "secondary"}
+              onClick={() => setView("dismissed")}
+            >
+              Dismissed
+            </Button>
+          </div>
+
+          {loading ? (
+            <div className="rounded-lg border border-border/60 bg-background/40 px-4 py-8 text-sm text-muted-foreground">
+              Loading issues...
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-xl border border-border/60 bg-background/45">
+              <Table className="min-w-[760px]">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Kind</TableHead>
+                    <TableHead>Namespace</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Severity</TableHead>
+                    <TableHead>Detected</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {currentIssues.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-muted-foreground">
+                        {view === "active" ? "No issues detected." : "No dismissed issues."}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    currentIssues.map((issue) => (
+                      <TableRow key={issue.id}>
+                        <TableCell>{issue.kind}</TableCell>
+                        <TableCell>{issue.namespace}</TableCell>
+                        <TableCell>{issue.name}</TableCell>
+                        <TableCell>
+                          <Badge variant={severityToVariant(issue.severity || "unknown")}>
+                            {issue.severity || "unknown"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{new Date(issue.detectedAt).toLocaleString()}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-2">
+                            {view === "active" ? (
+                              <>
+                                <Button variant="success" size="sm" onClick={() => openModal(issue)}>
+                                  Cluster Codex
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => handleDismiss(issue.id)}
+                                >
+                                  Dismiss
+                                </Button>
+                              </>
+                            ) : (
+                              <Button variant="secondary" size="sm" onClick={() => handleRestore(issue.id)}>
+                                Restore
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {selectedIssue && (
+        <Dialog
+          open={planOpen && Boolean(selectedIssue)}
+          onOpenChange={(isOpen) => {
+            if (!isOpen) {
+              closeModal();
+            }
+          }}
         >
-          Dismissed
-        </button>
-      </div>
-
-      {loading ? (
-        <div>Loading issues...</div>
-      ) : (
-        <div className="table-wrap">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Kind</th>
-                <th>Namespace</th>
-                <th>Name</th>
-                <th>Severity</th>
-                <th>Detected</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(view === "active" ? issues : dismissedIssues).length === 0 ? (
-                <tr>
-                  <td colSpan={6}>{view === "active" ? "No issues detected." : "No dismissed issues."}</td>
-                </tr>
-              ) : (
-                (view === "active" ? issues : dismissedIssues).map((issue) => (
-                  <tr key={issue.id}>
-                    <td>{issue.kind}</td>
-                    <td>{issue.namespace}</td>
-                    <td>{issue.name}</td>
-                    <td>
-                      <span className="status-chip">{issue.severity || "unknown"}</span>
-                    </td>
-                    <td>{new Date(issue.detectedAt).toLocaleString()}</td>
-                    <td>
-                      <div className="table-actions">
-                        {view === "active" ? (
-                          <>
-                            <button className="button tertiary" onClick={() => openModal(issue)}>
-                              Cluster Codex
-                            </button>
-                            <button className="button danger" onClick={() => handleDismiss(issue.id)}>
-                              Dismiss
-                            </button>
-                          </>
-                        ) : (
-                          <button className="button secondary" onClick={() => handleRestore(issue.id)}>
-                            Restore
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {selectedIssue && planOpen && (
-        <div className="modal-backdrop" role="dialog" aria-modal="true">
-          <div className="card modal-card">
-            <div className="modal-header-row">
-              <h2>Cluster Codex</h2>
-              <button className="button secondary" onClick={closeModal} aria-label="Close">
-                Close
-              </button>
+          <DialogContent className="max-h-[88vh] gap-0 overflow-hidden border-border/70 bg-popover p-0 sm:max-w-5xl">
+            <div className="border-b border-border/70 px-6 py-5">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Sparkles className="size-4 text-primary" />
+                  Cluster Codex
+                </DialogTitle>
+                <DialogDescription>
+                  Generate remediation guidance from live issue context and operator notes.
+                </DialogDescription>
+              </DialogHeader>
             </div>
 
-            <div className="modal-body">
-              <div className="form-field">
-                <label htmlFor="context">Cluster Issue Context</label>
-                <textarea
+            <div className="max-h-[calc(88vh-95px)] space-y-4 overflow-y-auto px-6 py-5">
+              <div className="space-y-2">
+                <label htmlFor="context" className="text-sm font-medium text-muted-foreground">
+                  Cluster Issue Context
+                </label>
+                <Textarea
                   id="context"
                   value={contextSnapshot}
                   onChange={(event) => setContextSnapshot(event.target.value)}
-                  className="text-block text-block-large"
+                  className="min-h-[320px]"
                 />
-                <div className="status-inline">
+                <p className="text-xs text-muted-foreground">
                   Edit captured context before generating a remediation plan.
-                </div>
+                </p>
               </div>
 
-              <div className="form-field">
-                <label htmlFor="userContext">Additional User Context</label>
-                <textarea
+              <div className="space-y-2">
+                <label htmlFor="userContext" className="text-sm font-medium text-muted-foreground">
+                  Additional User Context
+                </label>
+                <Textarea
                   id="userContext"
                   value={userContext}
                   onChange={(event) => setUserContext(event.target.value)}
-                  className="text-block text-block-small"
+                  className="min-h-[120px]"
                 />
               </div>
 
-              <div className="status-inline">
-                {codexStatusMessage}
+              <div className="space-y-1 text-xs text-muted-foreground">
+                <p>{codexStatusMessage}</p>
+                {codexProvider && <p>Provider: {codexProvider}</p>}
+                {codexAuthDetails && <p>Status: {codexAuthDetails}</p>}
+                <p>Live generation runs through the Codex SDK with structured JSON output.</p>
               </div>
 
-              {codexProvider && (
-                <div className="status-inline">
-                  Provider: {codexProvider}
-                </div>
-              )}
-
-              {codexAuthDetails && (
-                <div className="status-inline">
-                  Status: {codexAuthDetails}
-                </div>
-              )}
-
-              <div className="status-inline">
-                Live generation runs through the Codex SDK with structured JSON output.
-              </div>
-
-              {planError && <ErrorBanner message={planError} />}
+              <ErrorBanner message={planError} />
 
               {!planText && (
-                <div className="button-row">
-                  <button className="button" onClick={() => void submitPlan()} disabled={planLoading}>
-                    {planLoading ? "Generating..." : "Generate Plan"}
-                  </button>
+                <div className="flex items-center gap-2">
+                  <Button onClick={() => void submitPlan()} disabled={planLoading}>
+                    {planLoading ? (
+                      <>
+                        <LoaderCircle className="size-4 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      "Generate Plan"
+                    )}
+                  </Button>
                 </div>
               )}
 
               {planText && (
-                <div>
-                  {planSource && <div className="status-inline">Generated by: {planSource}</div>}
-                  {planWarning && <div className="status-inline">{planWarning}</div>}
-                  <div className="form-field">
-                    <label htmlFor="planOutput">Generated Plan</label>
-                    <div className="plan-output-wrap">
-                      <textarea
-                        id="planOutput"
-                        ref={planOutputRef}
-                        value={planText}
-                        readOnly
-                        className="text-block text-block-large"
-                      />
-                      <button
-                        onClick={handleCopyPlan}
-                        onMouseDown={() => setCopyPressed(true)}
-                        onMouseUp={() => setCopyPressed(false)}
-                        onMouseLeave={() => setCopyPressed(false)}
-                        type="button"
-                        className="copy-button"
-                        style={{
-                          right: planHasScroll ? "20px" : "6px",
-                          transform: copyPressed ? "scale(0.96)" : "scale(1)"
-                        }}
-                        aria-label="Copy plan text"
-                      >
-                        {copyStatus === "success" ? "Copied" : copyStatus === "error" ? "Copy failed" : "Copy"}
-                      </button>
+                <div className="space-y-4">
+                  {planSource && <p className="text-xs text-muted-foreground">Generated by: {planSource}</p>}
+                  {planWarning && <p className="text-xs text-amber-300">{planWarning}</p>}
+
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <label htmlFor="planOutput" className="text-sm font-medium text-muted-foreground">
+                        Generated Plan
+                      </label>
+                      <Button variant="secondary" size="sm" onClick={handleCopyPlan}>
+                        <ClipboardCopy className="size-4" />
+                        {copyStatus === "success"
+                          ? "Copied"
+                          : copyStatus === "error"
+                            ? "Copy failed"
+                            : "Copy"}
+                      </Button>
                     </div>
+                    <Textarea id="planOutput" value={planText} readOnly className="min-h-[320px]" />
                   </div>
 
-                  <div className="status-inline">
+                  <p className="text-xs text-muted-foreground">
                     Validate all generated commands before applying changes to your cluster.
-                  </div>
+                  </p>
 
-                  <div className="button-row top-gap">
-                    <button className="button secondary" onClick={() => void submitPlan()} disabled={planLoading}>
-                      {planLoading ? "Regenerating..." : "Regenerate Plan"}
-                    </button>
+                  <div className="flex items-center gap-2">
+                    <Button variant="secondary" onClick={() => void submitPlan()} disabled={planLoading}>
+                      {planLoading ? (
+                        <>
+                          <LoaderCircle className="size-4 animate-spin" />
+                          Regenerating...
+                        </>
+                      ) : (
+                        "Regenerate Plan"
+                      )}
+                    </Button>
                   </div>
                 </div>
               )}
             </div>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
-    </div>
+    </>
   );
 }

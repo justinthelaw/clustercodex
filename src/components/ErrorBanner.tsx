@@ -1,6 +1,9 @@
 /**
  * Renders lightweight inline error feedback used across interactive UI views.
  */
+import { TriangleAlert } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
 type ErrorBannerProps = {
   message: string;
 };
@@ -11,5 +14,11 @@ export default function ErrorBanner({ message }: ErrorBannerProps) {
     return null;
   }
 
-  return <div className="error">{message}</div>;
+  return (
+    <Alert variant="destructive">
+      <TriangleAlert className="size-4" />
+      <AlertTitle>Request Failed</AlertTitle>
+      <AlertDescription>{message}</AlertDescription>
+    </Alert>
+  );
 }
