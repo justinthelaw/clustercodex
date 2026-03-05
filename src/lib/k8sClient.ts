@@ -9,7 +9,7 @@ import type {
   ResourceKind
 } from "@/lib/types";
 
-// Executes GET requests and surfaces structured API errors when available.
+/** Executes GET requests and surfaces structured API errors when available. */
 async function getJson<T>(path: string): Promise<T> {
   const response = await fetch(path, {
     method: "GET",
@@ -23,9 +23,7 @@ async function getJson<T>(path: string): Promise<T> {
       if (body?.error) {
         message = body.details ? `${body.error}: ${body.details}` : body.error;
       }
-    } catch {
-      // Fall back to status-only message.
-    }
+    } catch {}
 
     throw new Error(message);
   }
@@ -33,7 +31,7 @@ async function getJson<T>(path: string): Promise<T> {
   return (await response.json()) as T;
 }
 
-// Executes POST requests with JSON payloads and consistent error handling.
+/** Executes POST requests with JSON payloads and consistent error handling. */
 async function postJson<T>(path: string, body: unknown): Promise<T> {
   const response = await fetch(path, {
     method: "POST",
@@ -51,9 +49,7 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
       if (parsed?.error) {
         message = parsed.details ? `${parsed.error}: ${parsed.details}` : parsed.error;
       }
-    } catch {
-      // Fall back to status-only message.
-    }
+    } catch {}
 
     throw new Error(message);
   }
@@ -61,18 +57,18 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
   return (await response.json()) as T;
 }
 
-// Fetches the current cluster issue list.
+/** Fetches the current cluster issue list. */
 export async function listIssues(): Promise<Issue[]> {
   return getJson<Issue[]>("/api/issues");
 }
 
-// Fetches resources for the selected Kubernetes kind.
+/** Fetches resources for the selected Kubernetes kind. */
 export async function listResources(kind: ResourceKind): Promise<ResourceItem[]> {
   const query = new URLSearchParams({ kind }).toString();
   return getJson<ResourceItem[]>(`/api/resources?${query}`);
 }
 
-// Requests a generated remediation plan for a specific issue and context.
+/** Requests a generated remediation plan for a specific issue and context. */
 export async function generatePlan(
   issue: Issue,
   contextSnapshot: string,
@@ -85,7 +81,7 @@ export async function generatePlan(
   });
 }
 
-// Loads current Codex authentication readiness details for UI display.
+/** Loads current Codex authentication readiness details for UI display. */
 export async function getCodexAuthStatus(): Promise<CodexAuthStatus> {
   return getJson<CodexAuthStatus>("/api/codex/auth");
 }

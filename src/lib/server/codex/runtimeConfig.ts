@@ -18,7 +18,7 @@ export type ResolvedCodexRuntime = {
   threadOptions: ThreadOptions;
 };
 
-// Returns a trimmed environment variable value when present.
+/** Returns a trimmed environment variable value when present. */
 function readEnv(name: string): string | undefined {
   const raw = process.env[name];
   if (!raw) {
@@ -28,7 +28,7 @@ function readEnv(name: string): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
-// Enforces required runtime environment variables.
+/** Enforces required runtime environment variables. */
 function requireEnv(name: string): string {
   const value = readEnv(name);
   if (!value) {
@@ -37,7 +37,7 @@ function requireEnv(name: string): string {
   return value;
 }
 
-// Normalizes configured auth mode to a supported internal variant.
+/** Normalizes configured auth mode to a supported internal variant. */
 function resolveAuthMode(): CodexAuthMode {
   const raw = requireEnv("CODEX_AUTH_MODE").toLowerCase();
   if (raw === "api" || raw === "api-key" || raw === "apikey") {
@@ -52,7 +52,7 @@ function resolveAuthMode(): CodexAuthMode {
   throw new Error("Invalid CODEX_AUTH_MODE. Supported values: chatgpt, api, auto.");
 }
 
-// Normalizes optional local provider configuration and aliases.
+/** Normalizes optional local provider configuration and aliases. */
 function resolveLocalProvider(): string | null {
   const raw = requireEnv("CODEX_LOCAL_PROVIDER");
   const normalized = raw.toLowerCase().replace(/[_.]/g, "-");
@@ -75,13 +75,13 @@ function resolveLocalProvider(): string | null {
   return normalized;
 }
 
-// Converts provider identifiers to safe config keys.
+/** Converts provider identifiers to safe config keys. */
 function sanitizeProviderId(raw: string): string {
   const normalized = raw.toLowerCase().replace(/[^a-z0-9_]/g, "_");
   return normalized.length > 0 ? normalized : "local";
 }
 
-// Merges the process environment with explicit overrides for child runtime execution.
+/** Merges the process environment with explicit overrides for child runtime execution. */
 function buildInheritedEnv(extra: Record<string, string>): Record<string, string> {
   const inherited: Record<string, string> = {};
   for (const [key, value] of Object.entries(process.env)) {
@@ -95,7 +95,7 @@ function buildInheritedEnv(extra: Record<string, string>): Record<string, string
   };
 }
 
-// Builds the final runtime options consumed by Codex SDK initialization.
+/** Builds the final runtime options consumed by Codex SDK initialization. */
 export function resolveRuntimeConfig(): ResolvedCodexRuntime {
   const model = requireEnv("CODEX_MODEL");
   const authMode = resolveAuthMode();

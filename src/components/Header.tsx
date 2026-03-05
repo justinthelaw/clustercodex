@@ -9,7 +9,7 @@ import { ShieldAlert } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-// Chooses the correct nav link styling for the current route.
+/** Chooses the correct nav link styling for the current route. */
 function navClass(isActive: boolean): string {
   return cn(
     buttonVariants({ variant: isActive ? "secondary" : "ghost", size: "sm" }),
@@ -18,7 +18,7 @@ function navClass(isActive: boolean): string {
   );
 }
 
-// Displays the persistent application header and primary navigation links.
+/** Displays the persistent application header and primary navigation links. */
 export default function Header() {
   const pathname = usePathname();
 

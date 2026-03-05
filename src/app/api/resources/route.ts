@@ -7,7 +7,7 @@ import { isResourceKind, listResourcesFromCluster } from "@/lib/server/k8s";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Validates requested resource kind and returns the corresponding cluster list.
+/** Validates requested resource kind and returns the corresponding cluster list. */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const kind = searchParams.get("kind");

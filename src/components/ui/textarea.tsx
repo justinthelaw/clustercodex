@@ -1,7 +1,11 @@
+/**
+ * Provides a shared textarea primitive with consistent visual styling.
+ */
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/** Renders a styled textarea element. */
 function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
   return (
     <textarea

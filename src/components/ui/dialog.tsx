@@ -1,5 +1,8 @@
 "use client";
 
+/**
+ * Provides shared dialog primitives built on Radix for modal interactions.
+ */
 import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
@@ -11,6 +14,7 @@ const DialogTrigger = DialogPrimitive.Trigger;
 const DialogPortal = DialogPrimitive.Portal;
 const DialogClose = DialogPrimitive.Close;
 
+/** Renders the dimmed overlay behind modal content. */
 function DialogOverlay({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
   return (
     <DialogPrimitive.Overlay
@@ -20,6 +24,7 @@ function DialogOverlay({ className, ...props }: React.ComponentProps<typeof Dial
   );
 }
 
+/** Renders modal content with close affordance and shared styling. */
 function DialogContent({ className, children, ...props }: React.ComponentProps<typeof DialogPrimitive.Content>) {
   return (
     <DialogPortal>
@@ -43,18 +48,22 @@ function DialogContent({ className, children, ...props }: React.ComponentProps<t
   );
 }
 
+/** Renders grouped dialog header content. */
 function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return <div className={cn("flex flex-col space-y-1.5", className)} {...props} />;
 }
 
+/** Renders grouped dialog footer actions. */
 function DialogFooter({ className, ...props }: React.ComponentProps<"div">) {
   return <div className={cn("flex flex-col-reverse gap-2 sm:flex-row sm:justify-end", className)} {...props} />;
 }
 
+/** Renders dialog title text. */
 function DialogTitle({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Title>) {
   return <DialogPrimitive.Title className={cn("text-lg font-semibold leading-none", className)} {...props} />;
 }
 
+/** Renders dialog description text. */
 function DialogDescription({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Description>) {
   return (
     <DialogPrimitive.Description

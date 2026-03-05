@@ -1,3 +1,6 @@
+/**
+ * Defines Playwright defaults for local and CI end-to-end execution.
+ */
 import { defineConfig } from "@playwright/test";
 
 export default defineConfig({

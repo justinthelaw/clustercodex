@@ -1,5 +1,76 @@
 # Developer Documentation
 
+## Product Context
+
+### The Problem
+
+Kubernetes troubleshooting is still high-friction. When workloads fail, teams often bounce between `kubectl`, events, logs, and tribal knowledge to diagnose and recover.
+
+### The Solution
+
+Cluster Codex is a single Next.js application that runs locally against your existing cluster access:
+
+- No separate backend service to deploy
+- Codex auth/provider mode is fully environment-driven via `.env`
+
+The app assumes you already have a valid `kubeconfig` and permissions. Kubernetes access is handled inside the app using [`@kubernetes/client-node`](https://github.com/kubernetes-client/javascript), so your own kubeconfig context and RBAC remain the source of truth.
+
+## How It Works
+
+```mermaid
+sequenceDiagram
+    box rgb(242, 242, 236) Local Workspace
+      actor Developer as Developer
+      participant ClusterCodex as Cluster Codex
+      participant CodexSDK as Codex SDK
+    end
+    box rgb(34, 34, 34) Platform Components
+      participant KubernetesAPI as Kubernetes API
+      participant K8sGPT as K8sGPT Result CRDs
+      participant K8sResources as Kubernetes Resources
+    end
+
+    Developer->>ClusterCodex: Open dashboard / request analysis
+    ClusterCodex->>KubernetesAPI: Read issues and resources
+    K8sResources->>KubernetesAPI: Persist workload state
+    K8sGPT->>KubernetesAPI: Write Result CRDs
+    KubernetesAPI-->>ClusterCodex: Return live cluster data
+    ClusterCodex->>CodexSDK: Submit issue + context for planning
+    CodexSDK-->>ClusterCodex: Structured remediation plan
+    ClusterCodex-->>Developer: Render plan and resource insights
+```
+
+## Features
+
+### Issues Dashboard
+
+- Reads K8sGPT `Result` CRDs directly from Kubernetes APIs.
+- Shows affected kind, namespace, name, and detection time.
+- Supports dismiss/restore with local browser storage.
+
+### Live Codex Plan Generation
+
+- Uses `@openai/codex-sdk` with structured JSON schema output for consistent plan shape.
+- Generates root-cause analysis, mitigation steps, validation checks, and rollback guidance.
+- Falls back to deterministic local planning if Codex is unavailable.
+- Supports auth modes via env (`chatgpt`, `api`, `auto`).
+- Supports local providers (for example Ollama or llama-server) via env configuration.
+
+### Resource Explorer
+
+- Read-only cluster inventory across common resource kinds, including workloads, networking objects, storage objects, CRDs, nodes, and events.
+
+## Technology Stack
+
+| Technology                                                                      | Purpose                                              |
+| ------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| [Next.js](https://nextjs.org) + [React](https://react.dev)                      | Frontend UI + in-app route handlers                  |
+| [Kubernetes Client JavaScript](https://github.com/kubernetes-client/javascript) | Kubernetes API access via kubeconfig                 |
+| [Codex SDK](https://developers.openai.com/codex/sdk)                            | Live cluster issue analysis and remediation planning |
+| [K8sGPT Operator](https://docs.k8sgpt.ai/getting-started/in-cluster-operator/)  | In-cluster issue detection                           |
+| [K3d](https://k3d.io/stable)                                                    | Local Kubernetes cluster                             |
+| [Playwright](https://playwright.dev)                                            | E2E testing                                          |
+
 ## Local Development Workflow
 
 ### Prerequisites
@@ -34,11 +105,17 @@ npm install @openai/codex --include=optional
 ### Daily Development
 
 ```bash
-# Setup example cluster and run app
+# Setup cluster fixtures and run the frontend
 npm run dev
 ```
 
 Open <http://localhost:3000>.
+
+If infrastructure is already running and you only need the app server:
+
+```bash
+npm run dev:app
+```
 
 ### Service URLs
 
@@ -62,6 +139,45 @@ Open <http://localhost:3000>.
   - Required when provider is enabled: `CODEX_LOCAL_BASE_URL`, `CODEX_LOCAL_PROVIDER_ID`, `CODEX_LOCAL_PROVIDER_NAME`, `CODEX_LOCAL_ENV_KEY`
   - Optional: `CODEX_LOCAL_API_KEY`
 
+### Codex Runtime Configuration Examples
+
+```bash
+# Provided in `.env.example`
+CODEX_MODEL=gpt-5.1-codex-mini
+CODEX_AUTH_MODE=chatgpt
+# Optional: fail stalled generations, cap absolute runtime, and trim oversized context input
+# CODEX_PLAN_IDLE_TIMEOUT_MS=90000
+# CODEX_PLAN_MAX_TIMEOUT_MS=300000
+# CODEX_PLAN_CONTEXT_MAX_CHARS=12000
+```
+
+```bash
+# API key mode
+CODEX_AUTH_MODE=api
+CODEX_API_KEY=sk-...
+
+# Auto mode (use API key if present, otherwise OAuth)
+CODEX_AUTH_MODE=auto
+```
+
+```bash
+# Ollama
+CODEX_LOCAL_PROVIDER=ollama
+CODEX_LOCAL_BASE_URL=http://localhost:11434/v1
+CODEX_LOCAL_PROVIDER_ID=ollama
+CODEX_LOCAL_PROVIDER_NAME=Ollama
+CODEX_LOCAL_ENV_KEY=OPENAI_API_KEY
+CODEX_MODEL=<your-local-model-name>
+
+# llama-server (llama.cpp)
+CODEX_LOCAL_PROVIDER=llama-server
+CODEX_LOCAL_BASE_URL=http://localhost:8080/v1
+CODEX_LOCAL_PROVIDER_ID=llama_server
+CODEX_LOCAL_PROVIDER_NAME=llama-server
+CODEX_LOCAL_ENV_KEY=OPENAI_API_KEY
+CODEX_MODEL=<your-local-model-name>
+```
+
 ### In-Cluster Resources
 
 - K8sGPT Operator namespace: `k8sgpt-operator-system`
@@ -81,6 +197,8 @@ npm run clean
 ### Running Tests
 
 ```bash
+pre-commit run --all-files
+npm run build
 npm run test
 ```
 
@@ -120,3 +238,26 @@ echo "$NPM_CONFIG_OMIT"
 ```
 
 If output includes `optional`, unset it for your shell/session before reinstalling.
+
+## Project Structure
+
+```text
+clustercodex/
+├── src/               # Next.js application source (root frontend + in-app APIs)
+├── tests/             # Playwright end-to-end tests
+├── scripts/           # Infrastructure orchestration and E2E runner
+├── charts/            # Helm/YAML cluster assets
+├── DEVELOPMENT.md     # Local development guide
+└── README.md          # Quick-start oriented overview
+```
+
+## Additional Project Docs
+
+- Contributing: `docs/CONTRIBUTING.md`
+- Security: `docs/SECURITY.md`
+- Support: `docs/SUPPORT.md`
+- Code of Conduct: `docs/CODE_OF_CONDUCT.md`
+
+## License
+
+This repository currently has no dedicated license file. Add one before broad reuse.

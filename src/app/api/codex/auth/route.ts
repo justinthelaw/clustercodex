@@ -8,7 +8,7 @@ import type { CodexAuthStatus } from "@/lib/types";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Reports the current server-side auth mode and availability state.
+/** Reports the current server-side auth mode and availability state. */
 export async function GET() {
   const status = await getCodexAuthStatus();
   const response: CodexAuthStatus = {

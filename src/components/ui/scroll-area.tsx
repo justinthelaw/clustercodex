@@ -1,10 +1,14 @@
 "use client";
 
+/**
+ * Provides shared scroll-area primitives for horizontally and vertically overflowing content.
+ */
 import * as React from "react";
 import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area";
 
 import { cn } from "@/lib/utils";
 
+/** Renders the scrollable viewport and default scrollbar components. */
 function ScrollArea({ className, children, ...props }: React.ComponentProps<typeof ScrollAreaPrimitive.Root>) {
   return (
     <ScrollAreaPrimitive.Root className={cn("relative overflow-hidden", className)} {...props}>
@@ -15,7 +19,12 @@ function ScrollArea({ className, children, ...props }: React.ComponentProps<type
   );
 }
 
-function ScrollBar({ className, orientation = "vertical", ...props }: React.ComponentProps<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>) {
+/** Renders a themed scrollbar for the specified orientation. */
+function ScrollBar({
+  className,
+  orientation = "vertical",
+  ...props
+}: React.ComponentProps<typeof ScrollAreaPrimitive.ScrollAreaScrollbar>) {
   return (
     <ScrollAreaPrimitive.ScrollAreaScrollbar
       orientation={orientation}

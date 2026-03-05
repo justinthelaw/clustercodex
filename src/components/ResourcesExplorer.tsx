@@ -44,7 +44,7 @@ const tabs: Tab[] = [
   { label: "Events", kind: "Event" }
 ];
 
-// Normalizes mixed-value resource fields into display-safe strings.
+/** Normalizes mixed-value resource fields into display-safe strings. */
 function getValue(item: ResourceItem, key: string): string {
   const value = item[key];
   if (value === null || value === undefined) {
@@ -53,7 +53,7 @@ function getValue(item: ResourceItem, key: string): string {
   return String(value);
 }
 
-// Derives stable row keys for rendering resource tables.
+/** Derives stable row keys for rendering resource tables. */
 function rowKey(kind: ResourceKind, item: ResourceItem, index: number): string {
   const namespace = getValue(item, "namespace");
   const name = getValue(item, "name");
@@ -70,7 +70,7 @@ function rowKey(kind: ResourceKind, item: ResourceItem, index: number): string {
   return `${kind}-${index}`;
 }
 
-// Defines column layouts per Kubernetes resource kind.
+/** Defines column layouts per Kubernetes resource kind. */
 const columnsByKind: Record<ResourceKind, Column[]> = {
   Pod: [
     { header: "Type", value: (item) => getValue(item, "type") },
@@ -204,18 +204,18 @@ const columnsByKind: Record<ResourceKind, Column[]> = {
   ]
 };
 
-// Renders resource data with tab-based kind selection and table formatting.
+/** Renders resource data with tab-based kind selection and table formatting. */
 export default function ResourcesExplorer() {
   const [activeKind, setActiveKind] = useState<ResourceKind>("Node");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [items, setItems] = useState<ResourceItem[]>([]);
 
-  // Reloads resources whenever the selected kind changes.
+  /** Reloads resources whenever the selected kind changes. */
   useEffect(() => {
     let mounted = true;
 
-    // Fetches current resource data and guards against unmounted updates.
+    /** Fetches current resource data and guards against unmounted updates. */
     const load = async () => {
       setLoading(true);
       setError("");
@@ -249,7 +249,7 @@ export default function ResourcesExplorer() {
 
   const activeColumns = useMemo(() => columnsByKind[activeKind], [activeKind]);
 
-  // Chooses the appropriate table layout for the selected resource kind.
+  /** Chooses the appropriate table layout for the selected resource kind. */
   const renderTable = () => {
     if (loading) {
       return (

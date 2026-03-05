@@ -3,7 +3,7 @@
  */
 const STORAGE_KEY = "clustercodex.dismissedIssueIds";
 
-// Reads dismissed issue identifiers from local storage when running in the browser.
+/** Reads dismissed issue identifiers from local storage when running in the browser. */
 export function loadDismissedIssueIds(): Set<string> {
   if (typeof window === "undefined") {
     return new Set<string>();
@@ -25,7 +25,7 @@ export function loadDismissedIssueIds(): Set<string> {
   }
 }
 
-// Stores dismissed issue identifiers for future dashboard sessions.
+/** Stores dismissed issue identifiers for future dashboard sessions. */
 export function saveDismissedIssueIds(ids: Set<string>) {
   if (typeof window === "undefined") {
     return;

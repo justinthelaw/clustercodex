@@ -7,7 +7,7 @@ const DEFAULT_CONTEXT_MAX_CHARS = 12000;
 
 type PromptIssuePayload = Pick<
   Issue,
-  "id" | "title" | "severity" | "kind" | "namespace" | "name" | "detectedAt"
+  "id" | "title" | "kind" | "namespace" | "name" | "detectedAt"
 > & {
   context?: {
     kind: string;
@@ -16,7 +16,7 @@ type PromptIssuePayload = Pick<
   };
 };
 
-// Parses positive integer env values with fallback behavior.
+/** Parses positive integer env values with fallback behavior. */
 function readPositiveIntEnv(name: string, fallback: number): number {
   const raw = process.env[name];
   if (!raw) {
@@ -27,7 +27,7 @@ function readPositiveIntEnv(name: string, fallback: number): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-// Safely serializes arbitrary values for prompt embedding.
+/** Safely serializes arbitrary values for prompt embedding. */
 function safeJson(value: unknown): string {
   try {
     return JSON.stringify(value, null, 2);
@@ -36,12 +36,11 @@ function safeJson(value: unknown): string {
   }
 }
 
-// Reduces issue payload size by keeping only fields needed for plan generation.
+/** Reduces issue payload size by keeping only fields needed for plan generation. */
 function buildIssuePayload(issue: Issue): PromptIssuePayload {
   const payload: PromptIssuePayload = {
     id: issue.id,
     title: issue.title,
-    severity: issue.severity,
     kind: issue.kind,
     namespace: issue.namespace,
     name: issue.name,
@@ -59,7 +58,7 @@ function buildIssuePayload(issue: Issue): PromptIssuePayload {
   return payload;
 }
 
-// Caps large context payloads to keep latency predictable.
+/** Caps large context payloads to keep latency predictable. */
 function truncateContext(rawContext: string): string {
   const maxChars = readPositiveIntEnv("CODEX_PLAN_CONTEXT_MAX_CHARS", DEFAULT_CONTEXT_MAX_CHARS);
 
@@ -71,7 +70,7 @@ function truncateContext(rawContext: string): string {
   return `${rawContext.slice(0, maxChars)}\n\n[Operator context truncated: omitted ${omitted} characters.]`;
 }
 
-// Constructs the full planning prompt with constraints and context payloads.
+/** Constructs the full planning prompt with constraints and context payloads. */
 export function buildPrompt(issue: Issue, mergedContext: string): string {
   const context = truncateContext(mergedContext.trim() || "No additional context provided.");
   const issuePayload = buildIssuePayload(issue);

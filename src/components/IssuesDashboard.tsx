@@ -6,7 +6,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ClipboardCopy, LoaderCircle, RefreshCw, Sparkles } from "lucide-react";
 import ErrorBanner from "@/components/ErrorBanner";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -17,24 +16,7 @@ import { generatePlan, getCodexAuthStatus, listIssues } from "@/lib/k8sClient";
 import { generateLocalPlan } from "@/lib/planGenerator";
 import type { CodexAuthStatus, CodexPlan, Issue } from "@/lib/types";
 
-type SeverityVariant = "low" | "medium" | "high" | "unknown";
-
-// Maps issue severities into badge styles used by the issue table.
-function severityToVariant(severity: string): SeverityVariant {
-  const normalized = severity.toLowerCase();
-  if (normalized === "low") {
-    return "low";
-  }
-  if (normalized === "medium") {
-    return "medium";
-  }
-  if (normalized === "high" || normalized === "critical") {
-    return "high";
-  }
-  return "unknown";
-}
-
-// Renders the primary issue dashboard and associated planning modal.
+/** Renders the primary issue dashboard and associated planning modal. */
 export default function IssuesDashboard() {
   const e2eDeterministicFallbackEnabled = process.env.NEXT_PUBLIC_CLUSTERCODEX_E2E_MODE === "1";
   const [issues, setIssues] = useState<Issue[]>([]);
@@ -57,7 +39,7 @@ export default function IssuesDashboard() {
   const [codexProvider, setCodexProvider] = useState("");
   const [codexAuthDetails, setCodexAuthDetails] = useState("");
 
-  // Loads issues and applies persisted dismiss-state filtering.
+  /** Loads issues and applies persisted dismiss-state filtering. */
   const loadData = async () => {
     setLoading(true);
     setError("");
@@ -77,12 +59,12 @@ export default function IssuesDashboard() {
     }
   };
 
-  // Performs the initial issue load on first render.
+  /** Performs the initial issue load on first render. */
   useEffect(() => {
     void loadData();
   }, []);
 
-  // Refreshes auth readiness details when the planning modal opens.
+  /** Refreshes auth readiness details when the planning modal opens. */
   useEffect(() => {
     if (!planOpen || !selectedIssue) {
       setCodexOAuthConnected(null);
@@ -94,7 +76,7 @@ export default function IssuesDashboard() {
 
     let cancelled = false;
 
-    // Fetches auth details while guarding against stale updates.
+    /** Fetches auth details while guarding against stale updates. */
     const loadCodexAuthStatus = async () => {
       setCodexOAuthConnected(null);
       setCodexAuthMethod(null);
@@ -127,7 +109,7 @@ export default function IssuesDashboard() {
     };
   }, [planOpen, selectedIssue]);
 
-  // Resets transient modal state and closes the planning view.
+  /** Resets transient modal state and closes the planning view. */
   const closeModal = () => {
     setSelectedIssue(null);
     setPlanOpen(false);
@@ -145,7 +127,7 @@ export default function IssuesDashboard() {
     setCodexAuthDetails("");
   };
 
-  // Moves an issue from active to dismissed and persists that choice.
+  /** Moves an issue from active to dismissed and persists that choice. */
   const handleDismiss = (issueId: string) => {
     setIssues((previous) => {
       const issue = previous.find((item) => item.id === issueId);
@@ -168,7 +150,7 @@ export default function IssuesDashboard() {
     });
   };
 
-  // Restores a dismissed issue back into the active list.
+  /** Restores a dismissed issue back into the active list. */
   const handleRestore = (issueId: string) => {
     setDismissedIssues((previous) => {
       const issue = previous.find((item) => item.id === issueId);
@@ -191,7 +173,7 @@ export default function IssuesDashboard() {
     });
   };
 
-  // Opens plan generation and seeds the context editor with captured signals.
+  /** Opens plan generation and seeds the context editor with captured signals. */
   const openModal = (issue: Issue) => {
     setSelectedIssue(issue);
     setPlanOpen(true);
@@ -227,7 +209,7 @@ export default function IssuesDashboard() {
     setContextSnapshot("");
   };
 
-  // Requests a live plan and falls back locally when deterministic E2E mode is enabled.
+  /** Requests a live plan and falls back locally when deterministic E2E mode is enabled. */
   const submitPlan = async () => {
     if (!selectedIssue) {
       return;
@@ -262,7 +244,7 @@ export default function IssuesDashboard() {
     }
   };
 
-  // Formats the generated plan into readable plain text for display and copy actions.
+  /** Formats the generated plan into readable plain text for display and copy actions. */
   const planText = useMemo(() => {
     if (!planResult) {
       return "";
@@ -300,7 +282,7 @@ export default function IssuesDashboard() {
     return lines.join("\n");
   }, [planResult]);
 
-  // Copies generated plan output to the clipboard with transient success/error feedback.
+  /** Copies generated plan output to the clipboard with transient success/error feedback. */
   const handleCopyPlan = async () => {
     if (!planText) {
       return;
@@ -316,7 +298,7 @@ export default function IssuesDashboard() {
     }
   };
 
-  // Derives a concise auth status message from current auth mode and readiness signals.
+  /** Derives a concise auth status message from current auth mode and readiness signals. */
   const codexStatusMessage = useMemo(() => {
     if (codexAuthDetails.toLowerCase().includes("unable to locate codex cli binaries")) {
       return "Codex runtime is unavailable because local CLI binaries are missing.";
@@ -403,7 +385,6 @@ export default function IssuesDashboard() {
                     <TableHead>Kind</TableHead>
                     <TableHead>Namespace</TableHead>
                     <TableHead>Name</TableHead>
-                    <TableHead>Severity</TableHead>
                     <TableHead>Detected</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
@@ -411,7 +392,7 @@ export default function IssuesDashboard() {
                 <TableBody>
                   {currentIssues.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-muted-foreground">
+                      <TableCell colSpan={5} className="text-muted-foreground">
                         {view === "active" ? "No issues detected." : "No dismissed issues."}
                       </TableCell>
                     </TableRow>
@@ -421,11 +402,6 @@ export default function IssuesDashboard() {
                         <TableCell>{issue.kind}</TableCell>
                         <TableCell>{issue.namespace}</TableCell>
                         <TableCell>{issue.name}</TableCell>
-                        <TableCell>
-                          <Badge variant={severityToVariant(issue.severity || "unknown")}>
-                            {issue.severity || "unknown"}
-                          </Badge>
-                        </TableCell>
                         <TableCell>{new Date(issue.detectedAt).toLocaleString()}</TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-2">

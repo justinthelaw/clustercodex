@@ -61,22 +61,22 @@ export const planOutputSchema = {
   }
 } as const;
 
-// Guards object-shape checks for schema validation helpers.
+/** Guards object-shape checks for schema validation helpers. */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-// Verifies array values are comprised only of strings.
+/** Verifies array values are comprised only of strings. */
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string");
 }
 
-// Verifies nullable string fields in generated step payloads.
+/** Verifies nullable string fields in generated step payloads. */
 function isNullableString(value: unknown): value is string | null {
   return value === null || typeof value === "string";
 }
 
-// Validates individual remediation step objects.
+/** Validates individual remediation step objects. */
 function isPlanStep(value: unknown): value is PlanStep {
   if (!isRecord(value)) {
     return false;
@@ -92,7 +92,7 @@ function isPlanStep(value: unknown): value is PlanStep {
   );
 }
 
-// Validates the complete plan payload shape.
+/** Validates the complete plan payload shape. */
 function isCodexPlan(value: unknown): value is CodexPlan {
   if (!isRecord(value) || !isRecord(value.quickFix)) {
     return false;
@@ -111,7 +111,7 @@ function isCodexPlan(value: unknown): value is CodexPlan {
   );
 }
 
-// Parses and validates structured plan responses from model output.
+/** Parses and validates structured plan responses from model output. */
 export function parseStructuredPlan(rawText: string): CodexPlan {
   let parsed: unknown;
   try {

@@ -25,12 +25,12 @@ type ApiErrorBody = {
   details: string;
 };
 
-// Guards object-shape checks for request payload parsing.
+/** Guards object-shape checks for request payload parsing. */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-// Validates the minimum issue fields required for planning.
+/** Validates the minimum issue fields required for planning. */
 function isIssue(value: unknown): value is Issue {
   if (!isRecord(value)) {
     return false;
@@ -39,7 +39,6 @@ function isIssue(value: unknown): value is Issue {
   return (
     typeof value.id === "string" &&
     typeof value.title === "string" &&
-    typeof value.severity === "string" &&
     typeof value.kind === "string" &&
     typeof value.namespace === "string" &&
     typeof value.name === "string" &&
@@ -47,12 +46,12 @@ function isIssue(value: unknown): value is Issue {
   );
 }
 
-// Merges captured cluster context with optional operator-provided context.
+/** Merges captured cluster context with optional operator-provided context. */
 function mergedContext(contextSnapshot: string | undefined, userContext: string | undefined): string {
   return [contextSnapshot?.trim(), userContext?.trim()].filter(Boolean).join("\n\n");
 }
 
-// Builds a deterministic fallback response when live generation is unavailable.
+/** Builds a deterministic fallback response when live generation is unavailable. */
 function localFallback(issue: Issue, context: string, warning: string): PlanGenerationResponse {
   return {
     plan: generateLocalPlan(issue, context),
@@ -62,18 +61,18 @@ function localFallback(issue: Issue, context: string, warning: string): PlanGene
   };
 }
 
-// Flags E2E mode where fallback behavior is intentionally relaxed.
+/** Flags E2E mode where fallback behavior is intentionally relaxed. */
 function deterministicFallbackEnabled(): boolean {
   return process.env.CLUSTERCODEX_E2E_MODE === "1";
 }
 
-// Normalizes API error payload format across route failures.
+/** Normalizes API error payload format across route failures. */
 function errorResponse(status: number, error: string, details: string) {
   const body: ApiErrorBody = { error, details };
   return NextResponse.json(body, { status });
 }
 
-// Parses, validates, and generates a remediation plan for the requested issue.
+/** Parses, validates, and generates a remediation plan for the requested issue. */
 export async function POST(request: Request) {
   let body: PlanRequestBody;
   try {

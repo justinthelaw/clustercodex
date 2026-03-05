@@ -2,6 +2,8 @@
 
 **Your local-first Kubernetes troubleshooting workspace.**
 
+For full development and operational documentation beyond quick start, use [DEVELOPMENT.md](DEVELOPMENT.md).
+
 ## The Problem
 
 Kubernetes troubleshooting is still high-friction. When workloads fail, teams often bounce between `kubectl`, events, logs, and tribal knowledge to diagnose and recover.
@@ -18,19 +20,26 @@ The app assumes you already have a valid `kubeconfig` and permissions. Kubernete
 ## How It Works
 
 ```mermaid
-graph LR
-    User[Developer]
-    UI[Cluster Codex]
-    Codex[Codex SDK]
-    Cluster[Kubernetes API]
-    K8sGPT[K8sGPT Result CRDs]
-    Resources[Kubernetes Resources]
+sequenceDiagram
+    box rgb(64, 45, 137) Local Workspace
+      actor Developer as Developer
+      participant ClusterCodex as Cluster Codex
+      participant CodexSDK as Codex SDK
+    end
+    box rgb(54, 54, 54) Platform Components
+      participant KubernetesAPI as Kubernetes API
+      participant K8sGPT as K8sGPT Result CRDs
+      participant K8sResources as Kubernetes Resources
+    end
 
-    User <--> UI
-    UI <--> Codex
-    Cluster --> UI
-    K8sGPT --> Cluster
-    Resources --> Cluster
+    Developer->>ClusterCodex: Open dashboard / request analysis
+    ClusterCodex->>KubernetesAPI: Read issues and resources
+    K8sResources->>KubernetesAPI: Persist workload state
+    K8sGPT->>KubernetesAPI: Write Result CRDs
+    KubernetesAPI-->>ClusterCodex: Return live cluster data
+    ClusterCodex->>CodexSDK: Submit issue + context for planning
+    CodexSDK-->>ClusterCodex: Structured remediation plan
+    ClusterCodex-->>Developer: Render plan and resource insights
 ```
 
 1. Start your cluster and ensure K8sGPT is producing `Result` CRDs.
@@ -43,7 +52,7 @@ graph LR
 ### Issues Dashboard
 
 - Reads K8sGPT `Result` CRDs directly from Kubernetes APIs.
-- Shows affected kind, namespace, name, severity, and detection time.
+- Shows affected kind, namespace, name, and detection time.
 - Supports dismiss/restore with local browser storage.
 
 ### Live Codex Plan Generation
@@ -94,88 +103,13 @@ npm run dev
 # Open http://localhost:3000
 ```
 
-See [DEVELOPMENT.md](DEVELOPMENT.md) for the full workflow.
-
-### Troubleshooting: Missing Codex CLI Binaries
-
-If plan generation fails with:
-`Unable to locate Codex CLI binaries. Ensure @openai/codex is installed with optional dependencies.`
-
-reinstall optional dependencies and retry:
+If cluster fixtures are already running, start only the frontend server:
 
 ```bash
-npm install --include=optional
-# or
-npm install @openai/codex --include=optional
+npm run dev:app
 ```
 
-If needed, enable optional dependencies for this project:
-
-```bash
-npm config set include optional
-```
-
-## Codex Runtime Configuration
-
-Cluster Codex reads Codex auth/provider behavior from environment variables.
-There are no code-level defaults for Codex runtime envs; copy `.env.example` and edit values:
-
-```bash
-# Provided in `.env.example`
-CODEX_MODEL=gpt-5.3-codex
-CODEX_AUTH_MODE=chatgpt
-# Optional: fail stalled generations, cap absolute runtime, and trim oversized context input
-# CODEX_PLAN_IDLE_TIMEOUT_MS=90000
-# CODEX_PLAN_MAX_TIMEOUT_MS=300000
-# CODEX_PLAN_CONTEXT_MAX_CHARS=12000
-
-# API key mode
-CODEX_AUTH_MODE=api
-CODEX_API_KEY=sk-...
-
-# Auto mode (use API key if present, otherwise OAuth)
-CODEX_AUTH_MODE=auto
-```
-
-Local provider examples:
-
-```bash
-# Ollama
-CODEX_LOCAL_PROVIDER=ollama
-CODEX_LOCAL_BASE_URL=http://localhost:11434/v1
-CODEX_LOCAL_PROVIDER_ID=ollama
-CODEX_LOCAL_PROVIDER_NAME=Ollama
-CODEX_LOCAL_ENV_KEY=OPENAI_API_KEY
-CODEX_MODEL=<your-local-model-name>
-
-# llama-server (llama.cpp)
-CODEX_LOCAL_PROVIDER=llama-server
-CODEX_LOCAL_BASE_URL=http://localhost:8080/v1
-CODEX_LOCAL_PROVIDER_ID=llama_server
-CODEX_LOCAL_PROVIDER_NAME=llama-server
-CODEX_LOCAL_ENV_KEY=OPENAI_API_KEY
-CODEX_MODEL=<your-local-model-name>
-```
-
-## Project Structure
-
-```text
-clustercodex/
-├── src/               # Next.js application source (root frontend + in-app APIs)
-├── tests/             # Playwright end-to-end tests
-├── scripts/           # Infrastructure orchestration and E2E runner
-├── charts/            # Helm/YAML cluster assets
-├── DEVELOPMENT.md     # Local development guide
-└── README.md          # This file
-```
-
-## Validation
-
-```bash
-npm run flight-check
-```
-
-`flight-check` runs clean, lint, build, and E2E test workflows with bootstrapping.
+See [DEVELOPMENT.md](DEVELOPMENT.md) for full workflow details, troubleshooting, runtime configuration, and validation guidance.
 
 ## Contributing
 
